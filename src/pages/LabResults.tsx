@@ -1,0 +1,284 @@
+import React, { useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Save, X } from 'lucide-react';
+import clsx from 'clsx';
+
+export default function LabResults() {
+  const [labs, setLabs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [extractedData, setExtractedData] = useState<any[] | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchLabs();
+  }, []);
+
+  const fetchLabs = async () => {
+    try {
+      const res = await fetch('/api/data/LabResults');
+      if (res.ok) {
+        const data = await res.json();
+        // Sort by date descending (newest first)
+        const sortedData = data.sort((a: any, b: any) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
+        setLabs(sortedData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch labs', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError('');
+    setExtractedData(null);
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('model', selectedModel);
+
+    try {
+      const res = await fetch('/api/analyze-lab', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to analyze image');
+      }
+      
+      const data = await res.json();
+      setExtractedData(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveExtracted = async () => {
+    if (!extractedData) return;
+    setSaving(true);
+    
+    // Format data for long format: Date, TestName, Value, Unit, ReferenceRange
+    const formattedData = extractedData.map(item => ({
+      Date: selectedDate,
+      TestName: item.testName || item.TestName || 'Unknown',
+      Value: item.value || item.Value || '',
+      Unit: item.unit || item.Unit || '',
+      ReferenceRange: item.referenceRange || item.ReferenceRange || ''
+    }));
+
+    try {
+      const res = await fetch('/api/data/LabResults', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formattedData)
+      });
+      
+      if (res.ok) {
+        setExtractedData(null);
+        fetchLabs();
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Lab Results</h1>
+        <p className="text-slate-500 mt-2">Upload and analyze your lab reports using AI.</p>
+      </header>
+
+      {/* Upload Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Upload className="w-5 h-5 text-indigo-600" />
+            Upload Lab Report
+          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">AI Model:</label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={uploading || saving}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+              >
+<option value="gemini-3-flash-preview">Gemini 3 Flash Preview  (Default)</option>
+<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+<option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+<option value="gemini-flash-latest">Gemini Flash Latest</option>
+<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+<option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Test Date:</label>
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                disabled={uploading || saving}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+            <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 text-indigo-600">
+              {uploading ? (
+                <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-8 h-8" />
+              )}
+            </div>
+            <p className="text-sm font-medium text-slate-900">
+              {uploading ? 'Analyzing image with AI...' : 'Click or drag image to upload'}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">Supports JPG, PNG (Max 5MB)</p>
+          </div>
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Extracted Data Review */}
+      {extractedData && (
+        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden ring-1 ring-indigo-50">
+          <div className="p-6 border-b border-indigo-50 bg-indigo-50/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Review Extracted Data</h2>
+            </div>
+            <button 
+              onClick={() => setExtractedData(null)}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3">Test Name</th>
+                    <th className="px-4 py-3">Value</th>
+                    <th className="px-4 py-3">Unit</th>
+                    <th className="px-4 py-3">Reference Range</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {extractedData.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-medium text-slate-900">{item.testName || item.TestName}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                          {item.value || item.Value}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{item.unit || item.Unit}</td>
+                      <td className="px-4 py-3 text-slate-500">{item.referenceRange || item.ReferenceRange}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button 
+                onClick={handleSaveExtracted}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving...' : 'Confirm & Save to Database'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+          <FileText className="w-5 h-5 text-slate-500" />
+          <h2 className="text-lg font-semibold text-slate-900">Lab History</h2>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Test Name</th>
+                <th className="px-6 py-4">Value</th>
+                <th className="px-6 py-4">Unit</th>
+                <th className="px-6 py-4">Reference Range</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                </tr>
+              ) : labs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">No lab results found.</td>
+                </tr>
+              ) : (
+                labs.map((l: any, i) => (
+                  <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{l.Date}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">{l.TestName}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                        {l.Value}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500">{l.Unit}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs">{l.ReferenceRange}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
