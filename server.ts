@@ -21,9 +21,23 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // --- Configuration ---
 const WHITELIST_EMAILS = [
-  'thunyaluks@gmail.com',
-  'captainsmallvet@gmail.com',
-  'ulidsp@gmail.com'
+'thunyaluks@gmail.com',
+'tmchote@gmail.com',
+'captainsmallvet@gmail.com',
+'captainct007@gmail.com',
+'ulidsp@gmail.com',
+'thunyalukblank@gmail.com',
+'tmchotestat@gmail.com',
+'toniekku@gmail.com',
+'tonstudyblog@gmail.com',
+'thunyalukkrungthai@gmail.com',
+'thunyalukkrungsri@gmail.com',
+'thunyalukkasikorn@gmail.com',
+'tonhc001@gmail.com',
+'tonhc002@gmail.com',
+'tonhc003@gmail.com',
+'tonhc004@gmail.com',
+'thunyalukusa@gmail.com'
 ];
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
