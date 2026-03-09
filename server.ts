@@ -487,8 +487,40 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
     });
     
     const rows = response.data.values || [];
+    const { startDate, endDate, search } = req.query;
     
-    const userHistory = rows
+    const filteredRows = rows.filter(row => {
+      if (!row[0] || !row[1] || !row[2]) return false;
+      
+      let matchesDate = true;
+      if (startDate || endDate) {
+        const rowDate = new Date(row[0]);
+        if (!isNaN(rowDate.getTime())) {
+          if (startDate) {
+            const start = new Date(startDate as string);
+            start.setHours(0, 0, 0, 0);
+            if (rowDate < start) matchesDate = false;
+          }
+          if (endDate) {
+            const end = new Date(endDate as string);
+            end.setHours(23, 59, 59, 999);
+            if (rowDate > end) matchesDate = false;
+          }
+        }
+      }
+      
+      let matchesSearch = true;
+      if (search) {
+        const searchTerm = (search as string).toLowerCase();
+        if (!row[2].toLowerCase().includes(searchTerm)) {
+          matchesSearch = false;
+        }
+      }
+      
+      return matchesDate && matchesSearch;
+    });
+    
+    const userHistory = filteredRows
       .map(row => ({
         role: row[1], // Role is now in column B
         text: row[2]  // Text is now in column C

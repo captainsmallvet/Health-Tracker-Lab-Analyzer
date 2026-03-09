@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Stethoscope, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter } from 'lucide-react';
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
 
@@ -22,6 +22,18 @@ export default function Chat() {
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Filter states
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -30,22 +42,35 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch('/api/chat/history');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.messages && data.messages.length > 0) {
-            setMessages(data.messages);
-          }
+  const fetchHistory = async () => {
+    setIsFetchingHistory(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      if (searchQuery) params.append('search', searchQuery);
+
+      const res = await fetch(`/api/chat/history?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const greeting: Message = { 
+          role: 'model', 
+          text: 'สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของคุณเรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?' 
+        };
+        if (data.messages && data.messages.length > 0) {
+          setMessages([greeting, ...data.messages]);
+        } else {
+          setMessages([greeting]);
         }
-      } catch (err) {
-        console.error('Failed to fetch chat history', err);
-      } finally {
-        setIsFetchingHistory(false);
       }
-    };
+    } catch (err) {
+      console.error('Failed to fetch chat history', err);
+    } finally {
+      setIsFetchingHistory(false);
+    }
+  };
+
+  useEffect(() => {
     fetchHistory();
   }, []);
 
@@ -105,7 +130,17 @@ export default function Chat() {
             <p className="text-xs text-slate-500">Expert analysis based on your personal health data</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={clsx(
+              "px-3 py-1.5 text-xs font-medium border rounded-lg transition-colors flex items-center gap-1.5",
+              showFilters ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            ตัวกรองประวัติ
+          </button>
           <button
             onClick={() => {
               setMessages([
@@ -117,16 +152,15 @@ export default function Chat() {
               setError('');
             }}
             disabled={isLoading}
-            className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             เริ่มแชตใหม่
           </button>
-          <label className="text-xs font-medium text-slate-700 whitespace-nowrap ml-2">AI Model:</label>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             disabled={isLoading}
-            className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+            className="px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           >
 <option value="gemini-3-flash-preview">Gemini 3 Flash Preview  (Default)</option>
 <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
@@ -140,6 +174,48 @@ export default function Chat() {
           </select>
         </div>
       </div>
+
+      {/* Filters Area */}
+      {showFilters && (
+        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-3 items-end sm:items-center text-sm">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 w-full sm:w-auto"
+            />
+            <span className="text-slate-400">-</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 w-full sm:w-auto"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="ค้นหาประวัติการแชต..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchHistory()}
+                className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 w-full"
+              />
+            </div>
+            <button 
+              onClick={fetchHistory}
+              disabled={isFetchingHistory}
+              className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap disabled:opacity-50"
+            >
+              ค้นหา
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/50 min-h-[300px]">
