@@ -6,6 +6,7 @@ import clsx from 'clsx';
 interface Message {
   role: 'user' | 'model';
   text: string;
+  timestamp?: string;
 }
 
 export default function Chat() {
@@ -83,7 +84,8 @@ export default function Chat() {
     setError('');
     
     // Add user message to UI
-    const newMessages: Message[] = [...messages, { role: 'user', text: userMessage }];
+    const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+    const newMessages: Message[] = [...messages, { role: 'user', text: userMessage, timestamp: now }];
     setMessages(newMessages);
     setIsLoading(true);
 
@@ -108,7 +110,7 @@ export default function Chat() {
       const data = await res.json();
       
       // Add model response to UI
-      setMessages(prev => [...prev, { role: 'model', text: data.text }]);
+      setMessages(prev => [...prev, { role: 'model', text: data.text, timestamp: data.timestamp }]);
     } catch (err: any) {
       setError(err.message || 'An error occurred while communicating with the AI.');
       // Remove the user message if it failed, or just show error
@@ -252,6 +254,20 @@ export default function Chat() {
                   ) : (
                     <div className="markdown-body text-sm prose prose-slate prose-p:leading-relaxed prose-pre:bg-slate-100 prose-pre:text-slate-800 max-w-none">
                       <Markdown>{msg.text}</Markdown>
+                    </div>
+                  )}
+                  {msg.timestamp && (
+                    <div className={clsx(
+                      "text-[10px] mt-2 opacity-70",
+                      msg.role === 'user' ? "text-indigo-100 text-right" : "text-slate-400"
+                    )}>
+                      {new Date(msg.timestamp).toLocaleString('th-TH', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
                     </div>
                   )}
                 </div>

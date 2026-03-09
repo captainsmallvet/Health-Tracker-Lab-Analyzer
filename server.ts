@@ -522,6 +522,7 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
     
     const userHistory = filteredRows
       .map(row => ({
+        timestamp: row[0],
         role: row[1], // Role is now in column B
         text: row[2]  // Text is now in column C
       }));
@@ -616,10 +617,11 @@ app.post('/api/chat', authenticate, async (req, res) => {
       }
     });
 
+    const timestamp = getThaiTimestamp();
+
     // Log usage and save chat history
     if (sheets && GOOGLE_SHEET_ID) {
       try {
-        const timestamp = getThaiTimestamp();
         const userEmail = (req as any).user.email;
         
         // Log usage
@@ -652,7 +654,7 @@ app.post('/api/chat', authenticate, async (req, res) => {
       }
     }
 
-    res.json({ text: response.text });
+    res.json({ text: response.text, timestamp });
   } catch (error) {
     console.error('Chat API error:', error);
     res.status(500).json({ error: 'Failed to generate response' });
