@@ -8,7 +8,7 @@ export default function LabResults() {
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -129,8 +129,6 @@ export default function LabResults() {
 <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
 <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-<option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-<option value="gemini-1.5-flash-preview">Gemini 1.5 Flash Preview</option>
               </select>
             </div>
             <div className="flex items-center gap-2">

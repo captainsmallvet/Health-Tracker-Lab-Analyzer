@@ -16,7 +16,7 @@ export default function Chat() {
     }
   ]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-pro-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);

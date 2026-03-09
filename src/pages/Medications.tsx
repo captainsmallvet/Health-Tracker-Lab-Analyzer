@@ -7,7 +7,7 @@ export default function Medications() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
-  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
