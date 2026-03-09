@@ -129,6 +129,8 @@ export default function LabResults() {
 <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
 <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+<option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+<option value="gemini-1.5-flash-preview">Gemini 1.5 Flash Preview</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
