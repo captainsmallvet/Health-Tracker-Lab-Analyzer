@@ -144,13 +144,13 @@ export default function Medications() {
             disabled={uploading || saving}
             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           >
-<option value="gemini-3-flash-preview">Gemini 3 Flash Preview  (Default)</option>
+<option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
 <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
 <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
 <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
 <option value="gemini-flash-latest">Gemini Flash Latest</option>
 <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+<option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
 <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
           </select>

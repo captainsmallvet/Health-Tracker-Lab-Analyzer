@@ -93,8 +93,8 @@ export default function Chat() {
             disabled={isLoading}
             className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           >
-<option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview  (Default)</option>
+<option value="gemini-3-flash-preview">Gemini 3 Flash Preview  (Default)</option>
+<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
 <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
 <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
 <option value="gemini-flash-latest">Gemini Flash Latest</option>
