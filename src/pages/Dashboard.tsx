@@ -83,10 +83,10 @@ export default function Dashboard() {
     if (name === 'hba1c' || name.includes('hemoglobin a1c')) acc[curr.Date].hba1c = val;
     if (name === 'ast' || name.includes('sgot')) acc[curr.Date].ast = val;
     if (name === 'alt' || name.includes('sgpt')) acc[curr.Date].alt = val;
-    if (name === 'ldl' || name.includes('low density')) acc[curr.Date].ldl = val;
-    if (name === 'hdl' || name.includes('high density')) acc[curr.Date].hdl = val;
+    if (name.includes('ldl') || name.includes('low density')) acc[curr.Date].ldl = val;
+    if (name.includes('hdl') || name.includes('high density')) acc[curr.Date].hdl = val;
     if (name.includes('triglyceride') || name === 'tg') acc[curr.Date].tg = val;
-    if (name === 'total cholesterol' || name === 'cholesterol') acc[curr.Date].tc = val;
+    if (name.includes('total cholesterol') || name === 'cholesterol' || name === 'tc') acc[curr.Date].tc = val;
 
     return acc;
   }, {});
