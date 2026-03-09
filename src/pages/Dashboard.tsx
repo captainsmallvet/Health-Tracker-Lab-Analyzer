@@ -19,7 +19,7 @@ export default function Dashboard() {
         const [vitalsRes, labsRes, usageRes, profileRes] = await Promise.all([
           fetch('/api/data/Vitals'),
           fetch('/api/data/LabResults'),
-          fetch('/api/data/UsageLogs'),
+          fetch('/api/usage/today'),
           fetch('/api/data/Profile')
         ]);
         
@@ -27,11 +27,8 @@ export default function Dashboard() {
         if (labsRes.ok) setLabs(await labsRes.json());
         
         if (usageRes.ok) {
-          const logs = await usageRes.json();
-          // Filter for today's usage
-          const today = new Date().toISOString().split('T')[0];
-          const todayUsage = logs.filter((log: any) => log.Date?.startsWith(today)).length;
-          setUsage(todayUsage);
+          const { count } = await usageRes.json();
+          setUsage(count);
         }
 
         if (profileRes.ok) {

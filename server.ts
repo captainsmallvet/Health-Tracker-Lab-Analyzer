@@ -186,6 +186,31 @@ const getSheetsClient = () => {
   return null;
 };
 
+// Get today's usage
+app.get('/api/usage/today', authenticate, async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    if (!sheets || !GOOGLE_SHEET_ID) return res.json({ count: 0 });
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: 'UsageLogs!A:A'
+    });
+    
+    const rows = response.data.values || [];
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Count rows where the first column starts with today's date
+    const todayCount = rows.filter(row => row[0] && row[0].startsWith(today)).length;
+    
+    res.json({ count: todayCount });
+  } catch (error) {
+    console.error('Failed to fetch usage', error);
+    // If the tab doesn't exist, just return 0
+    res.json({ count: 0 });
+  }
+});
+
 app.get('/api/data/:tab', authenticate, async (req, res) => {
   const { tab } = req.params;
   const sheets = getSheetsClient();
