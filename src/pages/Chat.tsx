@@ -18,6 +18,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +29,25 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch('/api/chat/history');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.messages && data.messages.length > 0) {
+            setMessages(data.messages);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch chat history', err);
+      } finally {
+        setIsFetchingHistory(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +63,8 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // Format messages for Gemini API
-      const apiMessages = newMessages.map(msg => ({
+      // Format messages for Gemini API, limit to last 20 messages to save tokens
+      const apiMessages = newMessages.slice(-20).map(msg => ({
         role: msg.role,
         parts: [{ text: msg.text }]
       }));
@@ -86,7 +106,22 @@ export default function Chat() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
+          <button
+            onClick={() => {
+              setMessages([
+                { 
+                  role: 'model', 
+                  text: 'สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของคุณเรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?' 
+                }
+              ]);
+              setError('');
+            }}
+            disabled={isLoading}
+            className="px-3 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            เริ่มแชตใหม่
+          </button>
+          <label className="text-xs font-medium text-slate-700 whitespace-nowrap ml-2">AI Model:</label>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
@@ -108,48 +143,57 @@ export default function Chat() {
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/50 min-h-[300px]">
-        {messages.map((msg, idx) => (
-          <div 
-            key={idx} 
-            className={clsx(
-              "flex gap-4 max-w-[85%]",
-              msg.role === 'user' ? "ml-auto flex-row-reverse" : ""
-            )}
-          >
-            <div className={clsx(
-              "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1",
-              msg.role === 'user' ? "bg-slate-200 text-slate-600" : "bg-indigo-600 text-white"
-            )}>
-              {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-            </div>
-            
-            <div className={clsx(
-              "p-4 rounded-2xl",
-              msg.role === 'user' 
-                ? "bg-indigo-600 text-white rounded-tr-sm" 
-                : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm"
-            )}>
-              {msg.role === 'user' ? (
-                <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
-              ) : (
-                <div className="markdown-body text-sm prose prose-slate prose-p:leading-relaxed prose-pre:bg-slate-100 prose-pre:text-slate-800 max-w-none">
-                  <Markdown>{msg.text}</Markdown>
+        {isFetchingHistory ? (
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            <p className="text-sm">กำลังโหลดประวัติการแชต...</p>
+          </div>
+        ) : (
+          <>
+            {messages.map((msg, idx) => (
+              <div 
+                key={idx} 
+                className={clsx(
+                  "flex gap-4 max-w-[85%]",
+                  msg.role === 'user' ? "ml-auto flex-row-reverse" : ""
+                )}
+              >
+                <div className={clsx(
+                  "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1",
+                  msg.role === 'user' ? "bg-slate-200 text-slate-600" : "bg-indigo-600 text-white"
+                )}>
+                  {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
-        
-        {isLoading && (
-          <div className="flex gap-4 max-w-[85%]">
-            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 mt-1">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 rounded-tl-sm shadow-sm flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-              <span className="text-sm text-slate-500">Analyzing your health data...</span>
-            </div>
-          </div>
+                
+                <div className={clsx(
+                  "p-4 rounded-2xl",
+                  msg.role === 'user' 
+                    ? "bg-indigo-600 text-white rounded-tr-sm" 
+                    : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm"
+                )}>
+                  {msg.role === 'user' ? (
+                    <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
+                  ) : (
+                    <div className="markdown-body text-sm prose prose-slate prose-p:leading-relaxed prose-pre:bg-slate-100 prose-pre:text-slate-800 max-w-none">
+                      <Markdown>{msg.text}</Markdown>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex gap-4 max-w-[85%]">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 mt-1">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 rounded-tl-sm shadow-sm flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                  <span className="text-sm text-slate-500">Analyzing your health data...</span>
+                </div>
+              </div>
+            )}
+          </>
         )}
         
         {error && (

@@ -411,6 +411,33 @@ app.post('/api/analyze-medication', authenticate, upload.single('image'), async 
 });
 
 // 5. AI Chat Assistant
+app.get('/api/chat/history', authenticate, async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    if (!sheets || !GOOGLE_SHEET_ID) return res.json({ messages: [] });
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: 'ChatHistory!A:D'
+    });
+    
+    const rows = response.data.values || [];
+    const userEmail = (req as any).user.email;
+    
+    const userHistory = rows
+      .filter(row => row[1] === userEmail)
+      .map(row => ({
+        role: row[2],
+        text: row[3]
+      }));
+      
+    res.json({ messages: userHistory });
+  } catch (error) {
+    console.error('Failed to fetch chat history', error);
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+
 app.post('/api/chat', authenticate, async (req, res) => {
   const { messages, model } = req.body;
 
@@ -494,19 +521,39 @@ app.post('/api/chat', authenticate, async (req, res) => {
       }
     });
 
-    // Log usage
+    // Log usage and save chat history
     if (sheets && GOOGLE_SHEET_ID) {
       try {
+        const timestamp = new Date().toISOString();
+        const userEmail = (req as any).user.email;
+        
+        // Log usage
         await sheets.spreadsheets.values.append({
           spreadsheetId: GOOGLE_SHEET_ID,
           range: 'UsageLogs!A:A',
           valueInputOption: 'USER_ENTERED',
           requestBody: { 
-            values: [[new Date().toISOString(), (req as any).user.email, 'chat-assistant', 1]] 
+            values: [[timestamp, userEmail, 'chat-assistant', 1]] 
           }
         });
+
+        // Save chat history
+        const userMsg = messages[messages.length - 1]?.parts[0]?.text || '';
+        if (userMsg) {
+          await sheets.spreadsheets.values.append({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: 'ChatHistory!A:D',
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { 
+              values: [
+                [timestamp, userEmail, 'user', userMsg],
+                [timestamp, userEmail, 'model', response.text]
+              ] 
+            }
+          });
+        }
       } catch (e) {
-        console.error('Failed to log usage', e);
+        console.error('Failed to log usage or save chat history', e);
       }
     }
 
