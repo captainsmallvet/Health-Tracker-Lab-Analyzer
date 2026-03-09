@@ -418,17 +418,15 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: 'ChatHistory!A:D'
+      range: 'ChatHistory!A:C' // Only need 3 columns now: Timestamp, Role, Text
     });
     
     const rows = response.data.values || [];
-    const userEmail = (req as any).user.email;
     
     const userHistory = rows
-      .filter(row => row[1] === userEmail)
       .map(row => ({
-        role: row[2],
-        text: row[3]
+        role: row[1], // Role is now in column B
+        text: row[2]  // Text is now in column C
       }));
       
     res.json({ messages: userHistory });
@@ -542,12 +540,12 @@ app.post('/api/chat', authenticate, async (req, res) => {
         if (userMsg) {
           await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: 'ChatHistory!A:D',
+            range: 'ChatHistory!A:C',
             valueInputOption: 'USER_ENTERED',
             requestBody: { 
               values: [
-                [timestamp, userEmail, 'user', userMsg],
-                [timestamp, userEmail, 'model', response.text]
+                [timestamp, 'user', userMsg],
+                [timestamp, 'model', response.text]
               ] 
             }
           });
