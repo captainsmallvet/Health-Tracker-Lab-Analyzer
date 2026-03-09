@@ -352,6 +352,43 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    // 6. Thyroid Function (TSH)
+    const tsh = getLatestLab(['TSH', 'Thyroid Stimulating Hormone']);
+    if (tsh && tsh.Value) {
+      const val = parseFloat(tsh.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val < 0.4) {
+        status = 'ต่ำกว่าเกณฑ์ (Hyperthyroidism Risk)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า TSH ต่ำ บ่งชี้ว่าต่อมไทรอยด์อาจทำงานมากเกินไป (ไทรอยด์เป็นพิษ) อาจมีอาการใจสั่น น้ำหนักลด ควรพบแพทย์';
+      } else if (val >= 0.4 && val <= 4.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'การทำงานของต่อมไทรอยด์อยู่ในเกณฑ์ปกติ';
+      } else if (val > 4.0 && val <= 10.0) {
+        status = 'ค่อนข้างสูง (Subclinical Hypothyroidism)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'ค่า TSH เริ่มสูง บ่งชี้ว่าต่อมไทรอยด์อาจทำงานลดลงเล็กน้อย ควรติดตามอาการและตรวจซ้ำตามแพทย์นัด';
+      } else {
+        status = 'สูง (Hypothyroidism)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า TSH สูง บ่งชี้ภาวะไทรอยด์ทำงานต่ำ อาจมีอาการอ่อนเพลีย น้ำหนักขึ้นง่าย ท้องผูก ควรพบแพทย์เพื่อรับการรักษา';
+      }
+
+      results.push({
+        category: 'การทำงานของไทรอยด์ (TSH)',
+        value: val,
+        unit: tsh.Unit || 'mIU/L',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
     return results;
   }, [vitals, labs, profile]);
 

@@ -186,6 +186,20 @@ const getSheetsClient = () => {
   return null;
 };
 
+// Helper to get current date/time in Thailand timezone (Asia/Bangkok)
+const getThaiTimestamp = () => {
+  return new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
+};
+
+const getThaiDateString = () => {
+  // Returns YYYY-MM-DD in Thai timezone
+  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Get today's usage
 app.get('/api/usage/today', authenticate, async (req, res) => {
   try {
@@ -198,10 +212,22 @@ app.get('/api/usage/today', authenticate, async (req, res) => {
     });
     
     const rows = response.data.values || [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = getThaiDateString();
     
-    // Count rows where the first column starts with today's date
-    const todayCount = rows.filter(row => row[0] && row[0].startsWith(today)).length;
+    // Count rows where the first column starts with today's date (YYYY-MM-DD or MM/DD/YYYY depending on how it was saved)
+    // We'll check if the string contains the current day and month to be safe across different formats
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
+    
+    const todayCount = rows.filter(row => {
+      if (!row[0]) return false;
+      const dateStr = String(row[0]);
+      // Check ISO format (YYYY-MM-DD) or locale format (M/D/YYYY)
+      return dateStr.startsWith(today) || 
+             (dateStr.includes(`${year}`) && dateStr.includes(`${d.getMonth() + 1}`) && dateStr.includes(`${d.getDate()}`));
+    }).length;
     
     res.json({ count: todayCount });
   } catch (error) {
@@ -354,7 +380,7 @@ app.post('/api/analyze-lab', authenticate, upload.single('image'), async (req, r
           range: 'UsageLogs!A:A',
           valueInputOption: 'USER_ENTERED',
           requestBody: { 
-            values: [[new Date().toISOString(), (req as any).user.email, 'analyze-lab', 1]] 
+            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-lab', 1]] 
           }
         });
       } catch (e) {
@@ -432,7 +458,7 @@ app.post('/api/analyze-medication', authenticate, upload.single('image'), async 
           range: 'UsageLogs!A:A',
           valueInputOption: 'USER_ENTERED',
           requestBody: { 
-            values: [[new Date().toISOString(), (req as any).user.email, 'analyze-medication', 1]] 
+            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-medication', 1]] 
           }
         });
       } catch (e) {
@@ -561,7 +587,7 @@ app.post('/api/chat', authenticate, async (req, res) => {
     // Log usage and save chat history
     if (sheets && GOOGLE_SHEET_ID) {
       try {
-        const timestamp = new Date().toISOString();
+        const timestamp = getThaiTimestamp();
         const userEmail = (req as any).user.email;
         
         // Log usage

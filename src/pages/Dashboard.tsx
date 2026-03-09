@@ -84,6 +84,13 @@ export default function Dashboard() {
     if (name.includes('hdl') || name.includes('high density')) acc[curr.Date].hdl = val;
     if (name.includes('triglyceride') || name === 'tg') acc[curr.Date].tg = val;
     if (name.includes('total cholesterol') || name === 'cholesterol' || name === 'tc') acc[curr.Date].tc = val;
+    
+    // Thyroid
+    if (name === 'tsh' || name.includes('thyroid stimulating')) acc[curr.Date].tsh = val;
+    if (name === 'ft3' || name.includes('free t3')) acc[curr.Date].ft3 = val;
+    if (name === 'ft4' || name.includes('free t4')) acc[curr.Date].ft4 = val;
+    if (name === 't3' || name.includes('triiodothyronine') && !name.includes('free')) acc[curr.Date].t3 = val;
+    if (name === 't4' || name.includes('thyroxine') && !name.includes('free')) acc[curr.Date].t4 = val;
 
     return acc;
   }, {});
@@ -108,6 +115,7 @@ export default function Dashboard() {
   const sugarData = labTrendData.filter((d: any) => d.fbs !== undefined || d.hba1c !== undefined);
   const liverData = labTrendData.filter((d: any) => d.ast !== undefined || d.alt !== undefined);
   const lipidData = labTrendData.filter((d: any) => d.ldl !== undefined || d.hdl !== undefined || d.tg !== undefined || d.tc !== undefined);
+  const thyroidData = labTrendData.filter((d: any) => d.tsh !== undefined || d.ft3 !== undefined || d.ft4 !== undefined || d.t3 !== undefined || d.t4 !== undefined);
 
   const ChartCard = ({ title, data, lines, interpretation, dualAxis }: { title: string, data: any[], lines: any[], interpretation: string, dualAxis?: boolean }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
@@ -281,6 +289,19 @@ export default function Dashboard() {
             { key: 'tc', color: '#64748b', name: 'คอเลสเตอรอลรวม' }
           ]}
           interpretation="LDL ควร < 100 (ยิ่งน้อยยิ่งดี), HDL ควร > 40-50 (ยิ่งมากยิ่งดี), ไตรกลีเซอไรด์ ควร < 150 และคอเลสเตอรอลรวม ควร < 200 mg/dL"
+        />
+
+        <ChartCard 
+          title="ฮอร์โมนไทรอยด์ (Thyroid Profile)" 
+          data={thyroidData} 
+          lines={[
+            { key: 'tsh', color: '#8b5cf6', name: 'TSH' },
+            { key: 'ft3', color: '#ec4899', name: 'Free T3' },
+            { key: 'ft4', color: '#14b8a6', name: 'Free T4' },
+            { key: 't3', color: '#f97316', name: 'T3' },
+            { key: 't4', color: '#3b82f6', name: 'T4' }
+          ]}
+          interpretation="TSH ปกติ 0.4-4.0 mIU/L (ค่าสูง=ไทรอยด์ทำงานต่ำ, ค่าต่ำ=ไทรอยด์เป็นพิษ), Free T3 ปกติ 2.0-4.4 pg/mL, Free T4 ปกติ 0.9-1.7 ng/dL"
         />
       </div>
 
