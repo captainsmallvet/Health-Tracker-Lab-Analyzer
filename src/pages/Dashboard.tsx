@@ -11,6 +11,8 @@ export default function Dashboard() {
   const [labs, setLabs] = useState([]);
   const [usage, setUsage] = useState(0);
   const [profile, setProfile] = useState<any>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const MAX_QUOTA = 1500;
 
   useEffect(() => {
@@ -44,11 +46,29 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
-  const bpData = vitals.map((v: any) => ({
+  const filteredVitals = vitals.filter((v: any) => {
+    if (!v.Date) return false;
+    const date = new Date(v.Date);
+    if (startDate && date < new Date(startDate)) return false;
+    if (endDate && date > new Date(endDate)) return false;
+    return true;
+  });
+
+  const filteredLabs = labs.filter((l: any) => {
+    if (!l.Date) return false;
+    const date = new Date(l.Date);
+    if (startDate && date < new Date(startDate)) return false;
+    if (endDate && date > new Date(endDate)) return false;
+    return true;
+  });
+
+  const bpData = filteredVitals.map((v: any) => ({
     date: v.Date,
     systolic: parseInt(v.Systolic),
     diastolic: parseInt(v.Diastolic)
-  })).filter(v => v.systolic && v.diastolic);
+  }))
+  .filter(v => v.systolic && v.diastolic)
+  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const quotaPercentage = (usage / MAX_QUOTA) * 100;
 
@@ -69,7 +89,7 @@ export default function Dashboard() {
   const isFemale = profile?.Gender === 'Female';
 
   // Group Labs by Date for multi-line charts
-  const groupedLabs = labs.reduce((acc: any, curr: any) => {
+  const groupedLabs = filteredLabs.reduce((acc: any, curr: any) => {
     if (!acc[curr.Date]) acc[curr.Date] = { date: curr.Date };
     const name = curr.TestName?.toLowerCase() || '';
     const val = parseFloat(curr.Value);
@@ -176,20 +196,44 @@ export default function Dashboard() {
           <p className="text-slate-500 mt-2">Overview of your health metrics and API usage.</p>
         </div>
         
-        <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
-          <img 
-            src={user?.picture} 
-            alt={user?.name} 
-            className="w-10 h-10 rounded-full border-2 border-indigo-50"
-            referrerPolicy="no-referrer"
-          />
-          <div>
-            <p className="font-semibold text-slate-900 text-sm">{profile?.Name || user?.name}</p>
-            {profile?.BirthDate ? (
-              <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(profile.BirthDate)}</p>
-            ) : (
-              <p className="text-xs text-slate-500">Welcome back</p>
-            )}
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">ตั้งแต่:</span>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+              />
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">ถึง:</span>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
+            <img 
+              src={user?.picture} 
+              alt={user?.name} 
+              className="w-10 h-10 rounded-full border-2 border-indigo-50"
+              referrerPolicy="no-referrer"
+            />
+            <div>
+              <p className="font-semibold text-slate-900 text-sm">{profile?.Name || user?.name}</p>
+              {profile?.BirthDate ? (
+                <p className="text-xs text-indigo-600 font-medium">อายุ: {calculateAge(profile.BirthDate)}</p>
+              ) : (
+                <p className="text-xs text-slate-500">Welcome back</p>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -361,7 +405,7 @@ export default function Dashboard() {
       </div>
 
       {/* Health Analysis Section */}
-      <HealthAnalysis vitals={vitals} labs={labs} profile={profile} />
+      <HealthAnalysis vitals={filteredVitals} labs={filteredLabs} profile={profile} />
     </div>
   );
 }
