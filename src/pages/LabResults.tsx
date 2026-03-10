@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function LabResults() {
-  const [labs, setLabs] = useState([]);
+  const [labs, setLabs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
@@ -13,8 +13,11 @@ export default function LabResults() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Manual Entry State
-  const [showManualForm, setShowManualForm] = useState(false);
+  // Manual Entry & Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLab, setEditingLab] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+
   const defaultLab = {
     Date: new Date().toISOString().split('T')[0],
     TestName: '',
@@ -25,6 +28,12 @@ export default function LabResults() {
   };
   const [manualLab, setManualLab] = useState(defaultLab);
 
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [sortOption, setSortOption] = useState('date_desc');
+
   useEffect(() => {
     fetchLabs();
   }, []);
@@ -34,9 +43,7 @@ export default function LabResults() {
       const res = await fetch('/api/data/LabResults');
       if (res.ok) {
         const data = await res.json();
-        // Sort by date descending (newest first)
-        const sortedData = data.sort((a: any, b: any) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
-        setLabs(sortedData);
+        setLabs(data);
       }
     } catch (error) {
       console.error('Failed to fetch labs', error);
@@ -121,18 +128,36 @@ export default function LabResults() {
     
     setSaving(true);
     try {
-      const res = await fetch('/api/data/LabResults', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([manualLab])
-      });
-      
-      if (res.ok) {
-        setShowManualForm(false);
-        setManualLab(defaultLab);
-        fetchLabs();
+      if (editingLab) {
+        // Update existing
+        const res = await fetch(`/api/data/LabResults/${editingLab._rowIndex}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(manualLab)
+        });
+        if (res.ok) {
+          setIsModalOpen(false);
+          setEditingLab(null);
+          setManualLab(defaultLab);
+          fetchLabs();
+        } else {
+          throw new Error('Failed to update lab result');
+        }
       } else {
-        throw new Error('Failed to save manual entry');
+        // Create new
+        const res = await fetch('/api/data/LabResults', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([manualLab])
+        });
+        
+        if (res.ok) {
+          setIsModalOpen(false);
+          setManualLab(defaultLab);
+          fetchLabs();
+        } else {
+          throw new Error('Failed to save manual entry');
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -140,6 +165,106 @@ export default function LabResults() {
       setSaving(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!editingLab) return;
+    
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/data/LabResults/${editingLab._rowIndex}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setConfirmDelete(null);
+        setEditingLab(null);
+        setManualLab(defaultLab);
+        setIsModalOpen(false);
+        fetchLabs();
+      } else {
+        throw new Error('Failed to delete');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (lab: any) => {
+    setEditingLab(lab);
+    setManualLab({
+      Date: lab.Date || '',
+      TestName: lab.TestName || '',
+      Value: lab.Value || '',
+      Unit: lab.Unit || '',
+      ReferenceRange: lab.ReferenceRange || '',
+      Notes: lab.Notes || ''
+    });
+    setConfirmDelete(null);
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setEditingLab(null);
+    setManualLab(defaultLab);
+    setConfirmDelete(null);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingLab(null);
+    setManualLab(defaultLab);
+    setConfirmDelete(null);
+    setError('');
+  };
+
+  // Filtering & Sorting Logic
+  const filteredLabs = useMemo(() => {
+    let result = labs.filter(l => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          (l.TestName || '').toLowerCase().includes(query) ||
+          (l.Notes || '').toLowerCase().includes(query) ||
+          (l.Unit || '').toLowerCase().includes(query) ||
+          (l.Value || '').toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Date Range filter
+      if (filterStartDate || filterEndDate) {
+        const labDate = l.Date ? new Date(l.Date) : null;
+        if (!labDate) return false;
+
+        if (filterStartDate && labDate < new Date(filterStartDate)) return false;
+        if (filterEndDate && labDate > new Date(filterEndDate)) return false;
+      }
+
+      return true;
+    });
+
+    // Sorting logic
+    result = [...result].sort((a, b) => {
+      if (sortOption === 'date_desc') {
+        return new Date(b.Date).getTime() - new Date(a.Date).getTime();
+      } else if (sortOption === 'date_asc') {
+        return new Date(a.Date).getTime() - new Date(b.Date).getTime();
+      } else if (sortOption === 'name_asc') {
+        return (a.TestName || '').localeCompare(b.TestName || '', 'th');
+      } else if (sortOption === 'name_desc') {
+        return (b.TestName || '').localeCompare(a.TestName || '', 'th');
+      } else if (sortOption === 'value_desc') {
+        return (parseFloat(b.Value) || 0) - (parseFloat(a.Value) || 0);
+      } else if (sortOption === 'value_asc') {
+        return (parseFloat(a.Value) || 0) - (parseFloat(b.Value) || 0);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [labs, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
   return (
     <div className="space-y-8">
@@ -156,157 +281,65 @@ export default function LabResults() {
             Upload Lab Report
           </h2>
           <button 
-            onClick={() => { setShowManualForm(!showManualForm); setExtractedData(null); }}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm"
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm shadow-sm"
           >
-            {showManualForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {showManualForm ? 'Cancel Manual Entry' : 'Manual Entry'}
+            <Plus className="w-4 h-4" />
+            Manual Entry
           </button>
         </div>
         
-        {!showManualForm && (
-          <div className="p-6 border-b border-slate-100 bg-white">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 space-y-4">
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      disabled={uploading || saving}
-                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-                    >
-                      <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-                      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-                      <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-                      <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
-                      <option value="gemini-flash-latest">Gemini Flash Latest</option>
-                      <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
-                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                      <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Test Date:</label>
-                    <input 
-                      type="date" 
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      disabled={uploading || saving}
-                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-                    />
-                  </div>
+        <div className="p-6 border-b border-slate-100 bg-white">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={uploading || saving}
+                    className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                  >
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                    <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+                    <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+                    <option value="gemini-flash-latest">Gemini Flash Latest</option>
+                    <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+                  </select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Notes:</label>
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Test Date:</label>
                   <input 
-                    type="text" 
-                    value={selectedNotes}
-                    onChange={(e) => setSelectedNotes(e.target.value)}
+                    type="date" 
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
                     disabled={uploading || saving}
-                    placeholder="e.g. Blood test after surgery on May 8, 2023"
-                    className="flex-1 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                    className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
                   />
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Notes:</label>
+                <input 
+                  type="text" 
+                  value={selectedNotes}
+                  onChange={(e) => setSelectedNotes(e.target.value)}
+                  disabled={uploading || saving}
+                  placeholder="e.g. Blood test after surgery on May 8, 2023"
+                  className="flex-1 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                />
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {showManualForm && (
-          <div className="p-6 bg-slate-50 border-t border-slate-100">
-            <form onSubmit={handleManualSave}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Date *</label>
-                  <input 
-                    type="date" 
-                    required
-                    value={manualLab.Date}
-                    onChange={e => setManualLab({...manualLab, Date: e.target.value})}
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Name *</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={manualLab.TestName}
-                    onChange={e => setManualLab({...manualLab, TestName: e.target.value})}
-                    placeholder="e.g. Glucose, Cholesterol"
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Value *</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={manualLab.Value}
-                    onChange={e => setManualLab({...manualLab, Value: e.target.value})}
-                    placeholder="e.g. 95, 120"
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
-                  <input 
-                    type="text" 
-                    value={manualLab.Unit}
-                    onChange={e => setManualLab({...manualLab, Unit: e.target.value})}
-                    placeholder="e.g. mg/dL"
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Reference Range</label>
-                  <input 
-                    type="text" 
-                    value={manualLab.ReferenceRange}
-                    onChange={e => setManualLab({...manualLab, ReferenceRange: e.target.value})}
-                    placeholder="e.g. 70-100"
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-                  <input 
-                    type="text" 
-                    value={manualLab.Notes}
-                    onChange={e => setManualLab({...manualLab, Notes: e.target.value})}
-                    placeholder="e.g. Annual checkup, Fasting 12 hrs"
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end gap-3">
-                <button 
-                  type="button"
-                  onClick={() => { setShowManualForm(false); setManualLab(defaultLab); setError(''); }}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Manual Entry'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {!showManualForm && (
-          <div className="p-6">
-            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+        <div className="p-6">
+          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
             <input 
               type="file" 
               accept="image/*" 
@@ -334,8 +367,152 @@ export default function LabResults() {
             </div>
           )}
         </div>
-        )}
       </div>
+
+      {/* Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-full max-w-2xl my-auto">
+            <div className={clsx(
+              "p-6 border-b border-slate-100 flex items-center justify-between",
+              editingLab ? "bg-amber-50/50" : "bg-indigo-50/30"
+            )}>
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                {editingLab ? (
+                  <>
+                    <Edit2 className="w-5 h-5 text-amber-600" />
+                    Edit Lab Result
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5 text-indigo-600" />
+                    Add New Lab Result
+                  </>
+                )}
+              </h2>
+              <button 
+                onClick={closeModal}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleManualSave} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Date *</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={manualLab.Date}
+                    onChange={e => setManualLab({...manualLab, Date: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={manualLab.TestName}
+                    onChange={e => setManualLab({...manualLab, TestName: e.target.value})}
+                    placeholder="e.g. Glucose, Cholesterol"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Value *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={manualLab.Value}
+                    onChange={e => setManualLab({...manualLab, Value: e.target.value})}
+                    placeholder="e.g. 95, 120"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.Unit}
+                    onChange={e => setManualLab({...manualLab, Unit: e.target.value})}
+                    placeholder="e.g. mg/dL"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Reference Range</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.ReferenceRange}
+                    onChange={e => setManualLab({...manualLab, ReferenceRange: e.target.value})}
+                    placeholder="e.g. 70-100"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.Notes}
+                    onChange={e => setManualLab({...manualLab, Notes: e.target.value})}
+                    placeholder="e.g. Annual checkup, Fasting 12 hrs"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-8 flex justify-between items-center gap-3">
+                {editingLab ? (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (confirmDelete === editingLab._rowIndex) {
+                        handleDelete();
+                      } else {
+                        setConfirmDelete(editingLab._rowIndex);
+                      }
+                    }}
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 font-medium rounded-xl transition-colors disabled:opacity-50",
+                      confirmDelete === editingLab._rowIndex ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    )}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {confirmDelete === editingLab._rowIndex ? 'Confirm Delete?' : 'Delete Record'}
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+                
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                      editingLab ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                    )}
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? 'Saving...' : editingLab ? 'Update Record' : 'Save Record'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Extracted Data Review */}
       {extractedData && (
@@ -399,9 +576,67 @@ export default function LabResults() {
 
       {/* History Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <FileText className="w-5 h-5 text-slate-500" />
-          <h2 className="text-lg font-semibold text-slate-900">Lab History</h2>
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-slate-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Lab History</h2>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <input 
+                type="date" 
+                value={filterStartDate}
+                onChange={e => setFilterStartDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+              <span className="text-slate-300">-</span>
+              <input 
+                type="date" 
+                value={filterEndDate}
+                onChange={e => setFilterEndDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+              <select 
+                value={sortOption}
+                onChange={e => setSortOption(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 font-medium"
+              >
+                <option value="date_desc">วันที่ (ใหม่-เก่า)</option>
+                <option value="date_asc">วันที่ (เก่า-ใหม่)</option>
+                <option value="name_asc">Test Name (ก-ฮ, A-Z)</option>
+                <option value="name_desc">Test Name (ฮ-ก, Z-A)</option>
+                <option value="value_desc">Value (มาก-น้อย)</option>
+                <option value="value_asc">Value (น้อย-มาก)</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="ค้นหา Lab History..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48"
+              />
+            </div>
+
+            {(filterStartDate || filterEndDate || searchQuery || sortOption !== 'date_desc') && (
+              <button 
+                onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); setSortOption('date_desc'); }}
+                className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                title="ล้างตัวกรอง"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -414,20 +649,24 @@ export default function LabResults() {
                 <th className="px-6 py-4">Unit</th>
                 <th className="px-6 py-4">Reference Range</th>
                 <th className="px-6 py-4">Notes</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
                 </tr>
-              ) : labs.length === 0 ? (
+              ) : filteredLabs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No lab results found.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">No lab results found.</td>
                 </tr>
               ) : (
-                labs.map((l: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                filteredLabs.map((l: any, i) => (
+                  <tr key={i} className={clsx(
+                    "hover:bg-slate-50/50 transition-colors",
+                    editingLab?._rowIndex === l._rowIndex && "bg-amber-50/30"
+                  )}>
                     <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{l.Date}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{l.TestName}</td>
                     <td className="px-6 py-4">
@@ -437,7 +676,18 @@ export default function LabResults() {
                     </td>
                     <td className="px-6 py-4 text-slate-500">{l.Unit}</td>
                     <td className="px-6 py-4 text-slate-500 text-xs">{l.ReferenceRange}</td>
-                    <td className="px-6 py-4 text-slate-500 text-xs">{l.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate" title={l.Notes}>{l.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => startEdit(l)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
