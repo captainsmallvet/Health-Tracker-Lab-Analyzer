@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Save, Activity } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Save, Activity, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, X } from 'lucide-react';
+import clsx from 'clsx';
 
 export default function Vitals() {
-  const [vitals, setVitals] = useState([]);
+  const [vitals, setVitals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+
+  const defaultFormData = {
     Date: new Date().toISOString().split('T')[0],
     Weight: '',
     Height: '',
@@ -13,7 +17,15 @@ export default function Vitals() {
     Diastolic: '',
     HeartRate: '',
     Notes: ''
-  });
+  };
+
+  const [formData, setFormData] = useState(defaultFormData);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [sortOption, setSortOption] = useState('date_desc');
 
   useEffect(() => {
     fetchVitals();
@@ -24,9 +36,7 @@ export default function Vitals() {
       const res = await fetch('/api/data/Vitals');
       if (res.ok) {
         const data = await res.json();
-        // Sort by date descending (newest first)
-        const sortedData = data.sort((a: any, b: any) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
-        setVitals(sortedData);
+        setVitals(data);
       }
     } catch (error) {
       console.error('Failed to fetch vitals', error);
@@ -43,22 +53,29 @@ export default function Vitals() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/data/Vitals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        setFormData({
-          Date: new Date().toISOString().split('T')[0],
-          Weight: '',
-          Height: '',
-          Systolic: '',
-          Diastolic: '',
-          HeartRate: '',
-          Notes: ''
+      if (editingRecord) {
+        // Update existing
+        const res = await fetch(`/api/data/Vitals/${editingRecord._rowIndex}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
         });
-        fetchVitals();
+        if (res.ok) {
+          setEditingRecord(null);
+          setFormData(defaultFormData);
+          fetchVitals();
+        }
+      } else {
+        // Create new
+        const res = await fetch('/api/data/Vitals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) {
+          setFormData(defaultFormData);
+          fetchVitals();
+        }
       }
     } catch (error) {
       console.error('Failed to save vitals', error);
@@ -66,6 +83,86 @@ export default function Vitals() {
       setSaving(false);
     }
   };
+
+  const handleDelete = async (rowIndex: number) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/data/Vitals/${rowIndex}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setConfirmDelete(null);
+        fetchVitals();
+      }
+    } catch (error) {
+      console.error('Failed to delete record', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (record: any) => {
+    setEditingRecord(record);
+    setFormData({
+      Date: record.Date || '',
+      Weight: record.Weight || '',
+      Height: record.Height || '',
+      Systolic: record.Systolic || '',
+      Diastolic: record.Diastolic || '',
+      HeartRate: record.HeartRate || '',
+      Notes: record.Notes || ''
+    });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingRecord(null);
+    setFormData(defaultFormData);
+  };
+
+  // Filtering & Sorting Logic
+  const filteredVitals = useMemo(() => {
+    let result = vitals.filter(v => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = (v.Notes || '').toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Date Range filter
+      if (filterStartDate || filterEndDate) {
+        const recordDate = v.Date ? new Date(v.Date) : null;
+        if (!recordDate) return false;
+
+        if (filterStartDate && recordDate < new Date(filterStartDate)) return false;
+        if (filterEndDate && recordDate > new Date(filterEndDate)) return false;
+      }
+
+      return true;
+    });
+
+    // Sorting logic
+    result = [...result].sort((a, b) => {
+      if (sortOption === 'date_desc') {
+        return new Date(b.Date).getTime() - new Date(a.Date).getTime();
+      } else if (sortOption === 'date_asc') {
+        return new Date(a.Date).getTime() - new Date(b.Date).getTime();
+      } else if (sortOption === 'weight_desc') {
+        return (parseFloat(b.Weight) || 0) - (parseFloat(a.Weight) || 0);
+      } else if (sortOption === 'weight_asc') {
+        return (parseFloat(a.Weight) || 0) - (parseFloat(b.Weight) || 0);
+      } else if (sortOption === 'bp_desc') {
+        return (parseInt(b.Systolic) || 0) - (parseInt(a.Systolic) || 0);
+      } else if (sortOption === 'hr_desc') {
+        return (parseInt(b.HeartRate) || 0) - (parseInt(a.HeartRate) || 0);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [vitals, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
   return (
     <div className="space-y-8">
@@ -75,11 +172,32 @@ export default function Vitals() {
       </header>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+        <div className={clsx(
+          "p-6 border-b border-slate-100 flex items-center justify-between",
+          editingRecord ? "bg-amber-50/50" : "bg-slate-50/50"
+        )}>
           <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" />
-            Add New Record
+            {editingRecord ? (
+              <>
+                <Edit2 className="w-5 h-5 text-amber-600" />
+                Edit Record
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 text-indigo-600" />
+                Add New Record
+              </>
+            )}
           </h2>
+          {editingRecord && (
+            <button 
+              onClick={cancelEdit}
+              className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
+            >
+              <X className="w-4 h-4" />
+              Cancel Edit
+            </button>
+          )}
         </div>
         
         <form onSubmit={handleSubmit} className="p-6">
@@ -170,23 +288,93 @@ export default function Vitals() {
             </div>
           </div>
 
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex justify-end gap-3">
+            {editingRecord && (
+              <button 
+                type="button"
+                onClick={cancelEdit}
+                className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
             <button 
               type="submit" 
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              className={clsx(
+                "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                editingRecord ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+              )}
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Record'}
+              {saving ? 'Saving...' : editingRecord ? 'Update Record' : 'Save Record'}
             </button>
           </div>
         </form>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <Activity className="w-5 h-5 text-slate-500" />
-          <h2 className="text-lg font-semibold text-slate-900">Recent Records</h2>
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Activity className="w-5 h-5 text-slate-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Recent Records</h2>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <input 
+                type="date" 
+                value={filterStartDate}
+                onChange={e => setFilterStartDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+              <span className="text-slate-300">-</span>
+              <input 
+                type="date" 
+                value={filterEndDate}
+                onChange={e => setFilterEndDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+              <select 
+                value={sortOption}
+                onChange={e => setSortOption(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 font-medium"
+              >
+                <option value="date_desc">วันที่ (ใหม่-เก่า)</option>
+                <option value="date_asc">วันที่ (เก่า-ใหม่)</option>
+                <option value="weight_desc">น้ำหนัก (มาก-น้อย)</option>
+                <option value="weight_asc">น้ำหนัก (น้อย-มาก)</option>
+                <option value="bp_desc">ความดัน (สูง-ต่ำ)</option>
+                <option value="hr_desc">Heart Rate (สูง-ต่ำ)</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="ค้นหา Notes..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48"
+              />
+            </div>
+
+            {(filterStartDate || filterEndDate || searchQuery || sortOption !== 'date_desc') && (
+              <button 
+                onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); setSortOption('date_desc'); }}
+                className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                title="ล้างตัวกรอง"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -199,20 +387,24 @@ export default function Vitals() {
                 <th className="px-6 py-4">Blood Pressure</th>
                 <th className="px-6 py-4">Heart Rate</th>
                 <th className="px-6 py-4">Notes</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
                 </tr>
-              ) : vitals.length === 0 ? (
+              ) : filteredVitals.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No records found.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">No records found.</td>
                 </tr>
               ) : (
-                vitals.map((v: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                filteredVitals.map((v: any, i) => (
+                  <tr key={i} className={clsx(
+                    "hover:bg-slate-50/50 transition-colors",
+                    editingRecord?._rowIndex === v._rowIndex && "bg-amber-50/30"
+                  )}>
                     <td className="px-6 py-4 font-medium text-slate-900">{v.Date}</td>
                     <td className="px-6 py-4">{v.Weight ? `${v.Weight} kg` : '-'}</td>
                     <td className="px-6 py-4">{v.Height ? `${v.Height} cm` : '-'}</td>
@@ -224,7 +416,43 @@ export default function Vitals() {
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4">{v.HeartRate ? `${v.HeartRate} bpm` : '-'}</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm">{v.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-sm max-w-xs truncate" title={v.Notes}>{v.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => startEdit(v)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        
+                        {confirmDelete === v._rowIndex ? (
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handleDelete(v._rowIndex)}
+                              className="text-[10px] font-bold text-rose-600 hover:underline"
+                            >
+                              Confirm
+                            </button>
+                            <button 
+                              onClick={() => setConfirmDelete(null)}
+                              className="text-[10px] font-bold text-slate-400 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmDelete(v._rowIndex)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
