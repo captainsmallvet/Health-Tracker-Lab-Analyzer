@@ -625,8 +625,8 @@ export default function Medications() {
               <tr>
                 <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
                 <th className="px-6 py-4">วิธีใช้</th>
-                <th className="px-6 py-4">ระยะเวลาที่ใช้</th>
-                <th className="px-6 py-4">หมายเหตุ</th>
+                <th className="px-6 py-4 min-w-[220px]">ระยะเวลาที่ใช้</th>
+                <th className="px-6 py-4 min-w-[250px]">หมายเหตุ</th>
                 <th className="px-6 py-4 text-right">จัดการ</th>
               </tr>
             </thead>
@@ -654,15 +654,15 @@ export default function Medications() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-700">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span>เริ่ม: {m.StartDate || '-'}</span>
+                        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="whitespace-nowrap">เริ่ม: {m.StartDate || '-'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-emerald-600 mt-1 font-medium text-xs">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>ใช้มาแล้ว: {getDuration(m.StartDate, '')}</span>
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">ใช้มาแล้ว: {getDuration(m.StartDate, '')}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={m.Notes}>
+                    <td className="px-6 py-4 text-slate-500 min-w-[250px] whitespace-pre-wrap">
                       {m.Notes || '-'}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -701,8 +701,8 @@ export default function Medications() {
                 <tr>
                   <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
                   <th className="px-6 py-4">วิธีใช้</th>
-                  <th className="px-6 py-4">ช่วงเวลาที่ใช้</th>
-                  <th className="px-6 py-4">หมายเหตุ</th>
+                  <th className="px-6 py-4 min-w-[220px]">ช่วงเวลาที่ใช้</th>
+                  <th className="px-6 py-4 min-w-[250px]">หมายเหตุ</th>
                   <th className="px-6 py-4 text-right">จัดการ</th>
                 </tr>
               </thead>
@@ -718,14 +718,14 @@ export default function Medications() {
                       <div className="text-slate-500 text-xs mt-1">{m.Frequency}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-slate-600 text-xs">
+                      <div className="text-slate-600 text-xs whitespace-nowrap">
                         {m.StartDate || '?'} ถึง {m.EndDate}
                       </div>
-                      <div className="text-slate-500 mt-1 font-medium text-xs">
+                      <div className="text-slate-500 mt-1 font-medium text-xs whitespace-nowrap">
                         รวม: {getDuration(m.StartDate, m.EndDate)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={m.Notes}>
+                    <td className="px-6 py-4 text-slate-500 min-w-[250px] whitespace-pre-wrap">
                       {m.Notes || '-'}
                     </td>
                     <td className="px-6 py-4 text-right">
