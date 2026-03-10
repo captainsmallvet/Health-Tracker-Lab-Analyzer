@@ -516,6 +516,83 @@ app.post('/api/analyze-medication', authenticate, upload.single('image'), async 
   }
 });
 
+// 4.5 AI Image Processing for Health Events
+app.post('/api/analyze-event', authenticate, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image provided' });
+  }
+
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'Gemini API Key not configured' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    
+    const prompt = `
+      Analyze this medical document, doctor's note, or imaging result (e.g., MRI, X-Ray, Ultrasound). Extract the data into a JSON object.
+      IMPORTANT: This image might be a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen. Focus STRICTLY on extracting the medical event details from the main content area.
+      The object should have the following keys:
+      - Date: The date of the test or event (format YYYY-MM-DD). If not found, leave empty.
+      - Type: Categorize the event into one of these exact strings: "Illness", "Symptom", "Diagnosis", "Surgery/Procedure", "Other". (For imaging like MRI/X-Ray, use "Diagnosis" or "Other").
+      - Description: A short, concise title for the event (e.g., "MRI Brain Results", "Chest X-Ray", "Doctor's Appointment").
+      - Notes: A detailed summary or translation of the findings, impressions, or doctor's notes. Translate complex medical terms into easy-to-understand Thai if possible.
+      
+      Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
+    `;
+
+    const modelToUse = req.body.model || 'gemini-3-flash-preview';
+    const response = await ai.models.generateContent({
+      model: modelToUse,
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: req.file.buffer.toString('base64'),
+              mimeType: req.file.mimetype,
+            }
+          },
+          {
+            text: prompt
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('No text returned from Gemini');
+    }
+
+    const parsedData = JSON.parse(text);
+    
+    // Log usage
+    const sheets = getSheetsClient();
+    if (sheets && GOOGLE_SHEET_ID) {
+      try {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: GOOGLE_SHEET_ID,
+          range: 'UsageLogs!A:A',
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { 
+            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-event', 1]] 
+          }
+        });
+      } catch (e) {
+        console.error('Failed to log usage', e);
+      }
+    }
+
+    res.json(parsedData);
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    res.status(500).json({ error: 'Failed to analyze event image' });
+  }
+});
+
 // 5. AI Chat Assistant
 app.get('/api/chat/history', authenticate, async (req, res) => {
   try {

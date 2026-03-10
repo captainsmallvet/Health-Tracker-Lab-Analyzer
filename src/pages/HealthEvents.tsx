@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function HealthEvents() {
@@ -9,6 +9,8 @@ export default function HealthEvents() {
   const [error, setError] = useState('');
   
   const [showForm, setShowForm] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newEvent, setNewEvent] = useState({
     Date: new Date().toISOString().split('T')[0],
     Type: 'Illness',
@@ -75,6 +77,47 @@ export default function HealthEvents() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAnalyzing(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/analyze-event', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to analyze image');
+      }
+
+      const data = await res.json();
+      
+      // Update form with extracted data
+      setNewEvent(prev => ({
+        ...prev,
+        Date: data.Date || prev.Date,
+        Type: data.Type || prev.Type,
+        Description: data.Description || prev.Description,
+        Notes: data.Notes || prev.Notes
+      }));
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze image');
+    } finally {
+      setAnalyzing(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const getTypeConfig = (typeValue: string) => {
     return eventTypes.find(t => t.value === typeValue) || eventTypes[4];
   };
@@ -119,6 +162,48 @@ export default function HealthEvents() {
           </div>
           
           <form onSubmit={handleSave} className="p-6 space-y-5">
+            {/* AI Image Upload Section */}
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    Auto-fill from Medical Document
+                  </h3>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    Upload a photo of your doctor's note, MRI, or X-Ray report to automatically extract details.
+                  </p>
+                </div>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    ref={fileInputRef}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={analyzing}
+                  />
+                  <button
+                    type="button"
+                    disabled={analyzing}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                  >
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload Image
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
