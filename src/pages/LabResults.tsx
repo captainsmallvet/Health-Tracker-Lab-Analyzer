@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, Save, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function LabResults() {
@@ -8,9 +8,22 @@ export default function LabResults() {
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedNotes, setSelectedNotes] = useState('');
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Manual Entry State
+  const [showManualForm, setShowManualForm] = useState(false);
+  const defaultLab = {
+    Date: new Date().toISOString().split('T')[0],
+    TestName: '',
+    Value: '',
+    Unit: '',
+    ReferenceRange: '',
+    Notes: ''
+  };
+  const [manualLab, setManualLab] = useState(defaultLab);
 
   useEffect(() => {
     fetchLabs();
@@ -68,13 +81,14 @@ export default function LabResults() {
     if (!extractedData) return;
     setSaving(true);
     
-    // Format data for long format: Date, TestName, Value, Unit, ReferenceRange
+    // Format data for long format: Date, TestName, Value, Unit, ReferenceRange, Notes
     const formattedData = extractedData.map(item => ({
       Date: selectedDate,
       TestName: item.testName || item.TestName || 'Unknown',
       Value: item.value || item.Value || '',
       Unit: item.unit || item.Unit || '',
-      ReferenceRange: item.referenceRange || item.ReferenceRange || ''
+      ReferenceRange: item.referenceRange || item.ReferenceRange || '',
+      Notes: selectedNotes
     }));
 
     try {
@@ -86,9 +100,39 @@ export default function LabResults() {
       
       if (res.ok) {
         setExtractedData(null);
+        setSelectedNotes('');
         fetchLabs();
       } else {
         throw new Error('Failed to save');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleManualSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualLab.TestName || !manualLab.Value) {
+      setError('กรุณากรอกชื่อการทดสอบและค่าผลลัพธ์');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const res = await fetch('/api/data/LabResults', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([manualLab])
+      });
+      
+      if (res.ok) {
+        setShowManualForm(false);
+        setManualLab(defaultLab);
+        fetchLabs();
+      } else {
+        throw new Error('Failed to save manual entry');
       }
     } catch (err: any) {
       setError(err.message);
@@ -111,41 +155,158 @@ export default function LabResults() {
             <Upload className="w-5 h-5 text-indigo-600" />
             Upload Lab Report
           </h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">AI Model:</label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={uploading || saving}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-              >
-<option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-<option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
-<option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Test Date:</label>
-              <input 
-                type="date" 
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                disabled={uploading || saving}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-              />
-            </div>
-          </div>
+          <button 
+            onClick={() => { setShowManualForm(!showManualForm); setExtractedData(null); }}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm"
+          >
+            {showManualForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showManualForm ? 'Cancel Manual Entry' : 'Manual Entry'}
+          </button>
         </div>
         
-        <div className="p-6">
-          <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+        {!showManualForm && (
+          <div className="p-6 border-b border-slate-100 bg-white">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      disabled={uploading || saving}
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                    >
+                      <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                      <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+                      <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+                      <option value="gemini-flash-latest">Gemini Flash Latest</option>
+                      <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
+                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                      <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Test Date:</label>
+                    <input 
+                      type="date" 
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      disabled={uploading || saving}
+                      className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Notes:</label>
+                  <input 
+                    type="text" 
+                    value={selectedNotes}
+                    onChange={(e) => setSelectedNotes(e.target.value)}
+                    disabled={uploading || saving}
+                    placeholder="e.g. Blood test after surgery on May 8, 2023"
+                    className="flex-1 px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showManualForm && (
+          <div className="p-6 bg-slate-50 border-t border-slate-100">
+            <form onSubmit={handleManualSave}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Date *</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={manualLab.Date}
+                    onChange={e => setManualLab({...manualLab, Date: e.target.value})}
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Test Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={manualLab.TestName}
+                    onChange={e => setManualLab({...manualLab, TestName: e.target.value})}
+                    placeholder="e.g. Glucose, Cholesterol"
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Value *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={manualLab.Value}
+                    onChange={e => setManualLab({...manualLab, Value: e.target.value})}
+                    placeholder="e.g. 95, 120"
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.Unit}
+                    onChange={e => setManualLab({...manualLab, Unit: e.target.value})}
+                    placeholder="e.g. mg/dL"
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Reference Range</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.ReferenceRange}
+                    onChange={e => setManualLab({...manualLab, ReferenceRange: e.target.value})}
+                    placeholder="e.g. 70-100"
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <input 
+                    type="text" 
+                    value={manualLab.Notes}
+                    onChange={e => setManualLab({...manualLab, Notes: e.target.value})}
+                    placeholder="e.g. Annual checkup, Fasting 12 hrs"
+                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => { setShowManualForm(false); setManualLab(defaultLab); setError(''); }}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Manual Entry'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {!showManualForm && (
+          <div className="p-6">
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
             <input 
               type="file" 
               accept="image/*" 
@@ -173,6 +334,7 @@ export default function LabResults() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Extracted Data Review */}
@@ -200,6 +362,7 @@ export default function LabResults() {
                     <th className="px-4 py-3">Value</th>
                     <th className="px-4 py-3">Unit</th>
                     <th className="px-4 py-3">Reference Range</th>
+                    <th className="px-4 py-3">Notes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -213,6 +376,7 @@ export default function LabResults() {
                       </td>
                       <td className="px-4 py-3 text-slate-500">{item.unit || item.Unit}</td>
                       <td className="px-4 py-3 text-slate-500">{item.referenceRange || item.ReferenceRange}</td>
+                      <td className="px-4 py-3 text-slate-500">{selectedNotes || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -249,16 +413,17 @@ export default function LabResults() {
                 <th className="px-6 py-4">Value</th>
                 <th className="px-6 py-4">Unit</th>
                 <th className="px-6 py-4">Reference Range</th>
+                <th className="px-6 py-4">Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
                 </tr>
               ) : labs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">No lab results found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No lab results found.</td>
                 </tr>
               ) : (
                 labs.map((l: any, i) => (
@@ -272,6 +437,7 @@ export default function LabResults() {
                     </td>
                     <td className="px-6 py-4 text-slate-500">{l.Unit}</td>
                     <td className="px-6 py-4 text-slate-500 text-xs">{l.ReferenceRange}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs">{l.Notes || '-'}</td>
                   </tr>
                 ))
               )}
