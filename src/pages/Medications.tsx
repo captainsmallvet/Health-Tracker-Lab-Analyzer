@@ -182,7 +182,6 @@ export default function Medications() {
     });
     setShowManualForm(true);
     setExtractedData(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Calculate duration string
@@ -317,23 +316,24 @@ export default function Medications() {
         </div>
       )}
 
-      {/* Manual Entry / Edit Form */}
+      {/* Manual Entry / Edit Form Modal */}
       {showManualForm && (
-        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden ring-1 ring-emerald-50">
-          <div className="p-6 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {editingMed ? <Edit2 className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
-              <h2 className="text-lg font-semibold text-slate-900">{editingMed ? 'แก้ไขข้อมูลยา' : 'เพิ่มข้อมูลยา'}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-emerald-100 overflow-hidden ring-1 ring-emerald-50 w-full max-w-2xl my-auto">
+            <div className="p-6 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {editingMed ? <Edit2 className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
+                <h2 className="text-lg font-semibold text-slate-900">{editingMed ? 'แก้ไขข้อมูลยา' : 'เพิ่มข้อมูลยา'}</h2>
+              </div>
+              <button 
+                onClick={() => { setShowManualForm(false); setEditingMed(null); }}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button 
-              onClick={() => { setShowManualForm(false); setEditingMed(null); }}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSaveManual} className="p-6 space-y-4">
+            
+            <form onSubmit={handleSaveManual} className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อยา *</label>
@@ -422,6 +422,7 @@ export default function Medications() {
               </button>
             </div>
           </form>
+          </div>
         </div>
       )}
 
