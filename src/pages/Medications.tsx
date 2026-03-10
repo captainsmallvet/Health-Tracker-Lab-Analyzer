@@ -14,6 +14,7 @@ export default function Medications() {
   // Manual Entry & Edit State
   const [showManualForm, setShowManualForm] = useState(false);
   const [editingMed, setEditingMed] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   
   const defaultMed = {
     MedicationName: '',
@@ -140,7 +141,12 @@ export default function Medications() {
   };
 
   const handleDelete = async () => {
-    if (!editingMed || !window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการยานี้?')) return;
+    if (!editingMed) return;
+    
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     
     setSaving(true);
     try {
@@ -151,6 +157,7 @@ export default function Medications() {
         setEditingMed(null);
         setShowManualForm(false);
         setManualMed(defaultMed);
+        setConfirmDelete(false);
         fetchMeds();
       } else {
         throw new Error('Failed to delete');
@@ -194,6 +201,7 @@ export default function Medications() {
 
   const openEditModal = (med: any) => {
     setEditingMed(med);
+    setConfirmDelete(false);
     setManualMed({
       MedicationName: med.MedicationName || '',
       Dosage: med.Dosage || '',
@@ -433,10 +441,13 @@ export default function Medications() {
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2.5 text-red-600 bg-red-50 font-medium rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
+                  className={clsx(
+                    "flex items-center gap-2 px-4 py-2.5 font-medium rounded-xl transition-colors disabled:opacity-50",
+                    confirmDelete ? "text-white bg-red-600 hover:bg-red-700" : "text-red-600 bg-red-50 hover:bg-red-100"
+                  )}
                 >
                   <Trash2 className="w-4 h-4" />
-                  ลบรายการ
+                  {confirmDelete ? 'ยืนยันการลบ?' : 'ลบรายการ'}
                 </button>
               ) : (
                 <div></div>
@@ -444,7 +455,15 @@ export default function Medications() {
               <div className="flex gap-3">
                 <button 
                   type="button"
-                  onClick={() => { setShowManualForm(false); setEditingMed(null); }}
+                  onClick={() => { 
+                    if (confirmDelete) {
+                      setConfirmDelete(false);
+                    } else {
+                      setShowManualForm(false); 
+                      setEditingMed(null); 
+                      setConfirmDelete(false);
+                    }
+                  }}
                   className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
                 >
                   ยกเลิก
