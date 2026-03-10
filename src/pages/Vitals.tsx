@@ -11,7 +11,8 @@ export default function Vitals() {
     Height: '',
     Systolic: '',
     Diastolic: '',
-    HeartRate: ''
+    HeartRate: '',
+    Notes: ''
   });
 
   useEffect(() => {
@@ -54,7 +55,8 @@ export default function Vitals() {
           Height: '',
           Systolic: '',
           Diastolic: '',
-          HeartRate: ''
+          HeartRate: '',
+          Notes: ''
         });
         fetchVitals();
       }
@@ -154,6 +156,18 @@ export default function Vitals() {
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
               />
             </div>
+
+            <div className="md:col-span-2 lg:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-2">หมายเหตุ (Notes)</label>
+              <input 
+                type="text" 
+                name="Notes"
+                value={formData.Notes}
+                onChange={handleChange}
+                placeholder="เช่น ข้อมูลหลังผ่าตัดวันที่ 8 พ.ค. 2023"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              />
+            </div>
           </div>
 
           <div className="mt-8 flex justify-end">
@@ -184,16 +198,17 @@ export default function Vitals() {
                 <th className="px-6 py-4">Height</th>
                 <th className="px-6 py-4">Blood Pressure</th>
                 <th className="px-6 py-4">Heart Rate</th>
+                <th className="px-6 py-4">Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
                 </tr>
               ) : vitals.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">No records found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-400">No records found.</td>
                 </tr>
               ) : (
                 vitals.map((v: any, i) => (
@@ -209,6 +224,7 @@ export default function Vitals() {
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4">{v.HeartRate ? `${v.HeartRate} bpm` : '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-sm">{v.Notes || '-'}</td>
                   </tr>
                 ))
               )}
