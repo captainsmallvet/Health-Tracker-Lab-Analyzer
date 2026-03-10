@@ -8,6 +8,8 @@ export default function Medications() {
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [uploadStartDate, setUploadStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [uploadEndDate, setUploadEndDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
@@ -80,8 +82,8 @@ export default function Medications() {
       // Ensure StartDate is populated
       const enrichedData = data.map((item: any) => ({
         ...item,
-        StartDate: item.StartDate || item.startDate || new Date().toISOString().split('T')[0],
-        EndDate: item.EndDate || item.endDate || '',
+        StartDate: item.StartDate || item.startDate || uploadStartDate,
+        EndDate: item.EndDate || item.endDate || uploadEndDate,
         Notes: item.Notes || item.notes || ''
       }));
       setExtractedData(enrichedData);
@@ -324,49 +326,76 @@ export default function Medications() {
         </div>
       </header>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative group cursor-pointer hover:border-indigo-300 transition-colors">
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
-          />
-          <div className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-              {uploading ? (
-                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Upload className="w-6 h-6" />
-              )}
+      {/* Action Buttons & Upload Settings */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันที่เริ่มใช้ยา (ค่าเริ่มต้น):</label>
+              <input 
+                type="date" 
+                value={uploadStartDate}
+                onChange={(e) => setUploadStartDate(e.target.value)}
+                disabled={uploading}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+              />
             </div>
-            <div>
-              <h3 className="font-semibold text-slate-900">สแกนฉลากยา (AI)</h3>
-              <p className="text-sm text-slate-500">อัปโหลดรูปฉลากยาเพื่อดึงข้อมูลอัตโนมัติ</p>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">วันหยุดยา (ค่าเริ่มต้น):</label>
+              <input 
+                type="date" 
+                value={uploadEndDate}
+                onChange={(e) => setUploadEndDate(e.target.value)}
+                disabled={uploading}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+              />
             </div>
           </div>
         </div>
+        
+        <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          <div className="flex-1 relative group cursor-pointer hover:bg-slate-50 transition-colors">
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed z-10"
+            />
+            <div className="p-6 flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                {uploading ? (
+                  <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">สแกนฉลากยา (AI)</h3>
+                <p className="text-sm text-slate-500">อัปโหลดรูปฉลากยาเพื่อดึงข้อมูลอัตโนมัติ</p>
+              </div>
+            </div>
+          </div>
 
-        <button 
-          onClick={() => { 
-            setEditingMed(null);
-            setManualMed(defaultMed);
-            setShowManualForm(true); 
-            setExtractedData(null); 
-            setError(''); 
-          }}
-          className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center gap-4 hover:border-emerald-300 transition-colors text-left"
-        >
-          <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
-            <Plus className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลยาด้วยตัวเอง</h3>
-            <p className="text-sm text-slate-500">กรอกรายละเอียดการใช้ยาด้วยตนเอง</p>
-          </div>
-        </button>
+          <button 
+            onClick={() => { 
+              setEditingMed(null);
+              setManualMed(defaultMed);
+              setShowManualForm(true); 
+              setExtractedData(null); 
+              setError(''); 
+            }}
+            className="flex-1 p-6 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
+          >
+            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+              <Plus className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลยาด้วยตัวเอง</h3>
+              <p className="text-sm text-slate-500">กรอกรายละเอียดการใช้ยาด้วยตนเอง</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {error && (
