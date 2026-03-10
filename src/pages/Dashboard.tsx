@@ -188,6 +188,9 @@ export default function Dashboard() {
     </div>
   );
 
+  const latestBp = bpData.length > 0 ? bpData[bpData.length - 1] : null;
+  const latestFbs = [...sugarData].reverse().find(d => d.fbs !== undefined);
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -257,9 +260,16 @@ export default function Dashboard() {
               <HeartPulse className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Latest BP</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium text-slate-500">Latest BP</p>
+                {latestBp?.date && (
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {latestBp.date}
+                  </span>
+                )}
+              </div>
               <p className="text-2xl font-bold text-slate-900">
-                {bpData.length > 0 ? `${bpData[bpData.length - 1].systolic}/${bpData[bpData.length - 1].diastolic}` : '--/--'}
+                {latestBp ? `${latestBp.systolic}/${latestBp.diastolic}` : '--/--'}
               </p>
             </div>
           </div>
@@ -271,9 +281,16 @@ export default function Dashboard() {
               <Droplet className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Latest FBS</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium text-slate-500">Latest FBS</p>
+                {latestFbs?.date && (
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {latestFbs.date}
+                  </span>
+                )}
+              </div>
               <p className="text-2xl font-bold text-slate-900">
-                {sugarData.length > 0 && sugarData[sugarData.length - 1].fbs ? `${sugarData[sugarData.length - 1].fbs} mg/dL` : '--'}
+                {latestFbs?.fbs ? `${latestFbs.fbs} mg/dL` : '--'}
               </p>
             </div>
           </div>
