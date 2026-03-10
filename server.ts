@@ -292,13 +292,32 @@ app.post('/api/data/:tab', authenticate, async (req, res) => {
     if (items.length === 0) return res.json({ success: true });
     
     if (!headers) {
-      headers = Object.keys(items[0]);
+      headers = Object.keys(items[0]).filter(key => key !== '_rowIndex');
       await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_SHEET_ID,
         range: `${tab}!A1`,
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: [headers] }
       });
+    } else {
+      let newHeadersAdded = false;
+      items.forEach(item => {
+        Object.keys(item).forEach(key => {
+          if (key !== '_rowIndex' && !headers.includes(key)) {
+            headers.push(key);
+            newHeadersAdded = true;
+          }
+        });
+      });
+      
+      if (newHeadersAdded) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: GOOGLE_SHEET_ID,
+          range: `${tab}!A1`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: [headers] }
+        });
+      }
     }
 
     // Map data to rows based on headers
@@ -337,6 +356,23 @@ app.put('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
     let headers = headerResponse.data.values?.[0];
     if (!headers) {
       return res.status(400).json({ error: 'No headers found in sheet' });
+    }
+
+    let newHeadersAdded = false;
+    Object.keys(data).forEach(key => {
+      if (key !== '_rowIndex' && !headers.includes(key)) {
+        headers.push(key);
+        newHeadersAdded = true;
+      }
+    });
+
+    if (newHeadersAdded) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${tab}!A1`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [headers] }
+      });
     }
 
     // Map data to row based on headers
