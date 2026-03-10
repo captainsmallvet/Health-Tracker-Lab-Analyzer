@@ -20,6 +20,7 @@ export default function Vitals() {
   };
 
   const [formData, setFormData] = useState(defaultFormData);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +64,7 @@ export default function Vitals() {
         if (res.ok) {
           setEditingRecord(null);
           setFormData(defaultFormData);
+          setIsModalOpen(false);
           fetchVitals();
         }
       } else {
@@ -74,6 +76,7 @@ export default function Vitals() {
         });
         if (res.ok) {
           setFormData(defaultFormData);
+          setIsModalOpen(false);
           fetchVitals();
         }
       }
@@ -84,14 +87,19 @@ export default function Vitals() {
     }
   };
 
-  const handleDelete = async (rowIndex: number) => {
+  const handleDelete = async () => {
+    if (!editingRecord) return;
+    
     setSaving(true);
     try {
-      const res = await fetch(`/api/data/Vitals/${rowIndex}`, {
+      const res = await fetch(`/api/data/Vitals/${editingRecord._rowIndex}`, {
         method: 'DELETE'
       });
       if (res.ok) {
         setConfirmDelete(null);
+        setEditingRecord(null);
+        setFormData(defaultFormData);
+        setIsModalOpen(false);
         fetchVitals();
       }
     } catch (error) {
@@ -112,13 +120,22 @@ export default function Vitals() {
       HeartRate: record.HeartRate || '',
       Notes: record.Notes || ''
     });
-    // Scroll to form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setConfirmDelete(null);
+    setIsModalOpen(true);
   };
 
-  const cancelEdit = () => {
+  const openAddModal = () => {
     setEditingRecord(null);
     setFormData(defaultFormData);
+    setConfirmDelete(null);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingRecord(null);
+    setFormData(defaultFormData);
+    setConfirmDelete(null);
   };
 
   // Filtering & Sorting Logic
@@ -166,152 +183,186 @@ export default function Vitals() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Vitals</h1>
-        <p className="text-slate-500 mt-2">Record and track your daily vital signs.</p>
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Vitals</h1>
+          <p className="text-slate-500 mt-2">Record and track your daily vital signs.</p>
+        </div>
+        <button 
+          onClick={openAddModal}
+          className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Add New Record
+        </button>
       </header>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className={clsx(
-          "p-6 border-b border-slate-100 flex items-center justify-between",
-          editingRecord ? "bg-amber-50/50" : "bg-slate-50/50"
-        )}>
-          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            {editingRecord ? (
-              <>
-                <Edit2 className="w-5 h-5 text-amber-600" />
-                Edit Record
-              </>
-            ) : (
-              <>
-                <Plus className="w-5 h-5 text-indigo-600" />
-                Add New Record
-              </>
-            )}
-          </h2>
-          {editingRecord && (
-            <button 
-              onClick={cancelEdit}
-              className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1"
-            >
-              <X className="w-4 h-4" />
-              Cancel Edit
-            </button>
-          )}
-        </div>
-        
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
-              <input 
-                type="date" 
-                name="Date"
-                value={formData.Date}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
+      {/* Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-full max-w-2xl my-auto">
+            <div className={clsx(
+              "p-6 border-b border-slate-100 flex items-center justify-between",
+              editingRecord ? "bg-amber-50/50" : "bg-indigo-50/30"
+            )}>
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                {editingRecord ? (
+                  <>
+                    <Edit2 className="w-5 h-5 text-amber-600" />
+                    Edit Vital Record
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5 text-indigo-600" />
+                    Add New Vital Record
+                  </>
+                )}
+              </h2>
+              <button 
+                onClick={closeModal}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Weight (kg)</label>
-              <input 
-                type="number" 
-                step="0.1"
-                name="Weight"
-                value={formData.Weight}
-                onChange={handleChange}
-                placeholder="e.g. 70.5"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Date</label>
+                  <input 
+                    type="date" 
+                    name="Date"
+                    value={formData.Date}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Weight (kg)</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    name="Weight"
+                    value={formData.Weight}
+                    onChange={handleChange}
+                    placeholder="e.g. 70.5"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Height (cm)</label>
-              <input 
-                type="number" 
-                name="Height"
-                value={formData.Height}
-                onChange={handleChange}
-                placeholder="e.g. 175"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Height (cm)</label>
+                  <input 
+                    type="number" 
+                    name="Height"
+                    value={formData.Height}
+                    onChange={handleChange}
+                    placeholder="e.g. 175"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Systolic BP (mmHg)</label>
-              <input 
-                type="number" 
-                name="Systolic"
-                value={formData.Systolic}
-                onChange={handleChange}
-                placeholder="e.g. 120"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Systolic BP (mmHg)</label>
+                  <input 
+                    type="number" 
+                    name="Systolic"
+                    value={formData.Systolic}
+                    onChange={handleChange}
+                    placeholder="e.g. 120"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Diastolic BP (mmHg)</label>
-              <input 
-                type="number" 
-                name="Diastolic"
-                value={formData.Diastolic}
-                onChange={handleChange}
-                placeholder="e.g. 80"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Diastolic BP (mmHg)</label>
+                  <input 
+                    type="number" 
+                    name="Diastolic"
+                    value={formData.Diastolic}
+                    onChange={handleChange}
+                    placeholder="e.g. 80"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Heart Rate (bpm)</label>
-              <input 
-                type="number" 
-                name="HeartRate"
-                value={formData.HeartRate}
-                onChange={handleChange}
-                placeholder="e.g. 72"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Heart Rate (bpm)</label>
+                  <input 
+                    type="number" 
+                    name="HeartRate"
+                    value={formData.HeartRate}
+                    onChange={handleChange}
+                    placeholder="e.g. 72"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
 
-            <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-2">หมายเหตุ (Notes)</label>
-              <input 
-                type="text" 
-                name="Notes"
-                value={formData.Notes}
-                onChange={handleChange}
-                placeholder="เช่น ข้อมูลหลังผ่าตัดวันที่ 8 พ.ค. 2023"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              />
-            </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">หมายเหตุ (Notes)</label>
+                  <input 
+                    type="text" 
+                    name="Notes"
+                    value={formData.Notes}
+                    onChange={handleChange}
+                    placeholder="เช่น ข้อมูลหลังผ่าตัดวันที่ 8 พ.ค. 2023"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-between items-center gap-3">
+                {editingRecord ? (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (confirmDelete === editingRecord._rowIndex) {
+                        handleDelete();
+                      } else {
+                        setConfirmDelete(editingRecord._rowIndex);
+                      }
+                    }}
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 font-medium rounded-xl transition-colors disabled:opacity-50",
+                      confirmDelete === editingRecord._rowIndex ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    )}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {confirmDelete === editingRecord._rowIndex ? 'Confirm Delete?' : 'Delete Record'}
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+                
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                      editingRecord ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                    )}
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? 'Saving...' : editingRecord ? 'Update Record' : 'Save Record'}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
-
-          <div className="mt-8 flex justify-end gap-3">
-            {editingRecord && (
-              <button 
-                type="button"
-                onClick={cancelEdit}
-                className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-            <button 
-              type="submit" 
-              disabled={saving}
-              className={clsx(
-                "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
-                editingRecord ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
-              )}
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : editingRecord ? 'Update Record' : 'Save Record'}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -426,31 +477,6 @@ export default function Vitals() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        
-                        {confirmDelete === v._rowIndex ? (
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => handleDelete(v._rowIndex)}
-                              className="text-[10px] font-bold text-rose-600 hover:underline"
-                            >
-                              Confirm
-                            </button>
-                            <button 
-                              onClick={() => setConfirmDelete(null)}
-                              className="text-[10px] font-bold text-slate-400 hover:underline"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button 
-                            onClick={() => setConfirmDelete(v._rowIndex)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
