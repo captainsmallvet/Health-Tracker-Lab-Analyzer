@@ -65,6 +65,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'ดัชนีมวลกาย (BMI)',
+        date: latestVitals.Date,
         value: bmi.toFixed(1),
         unit: 'kg/m²',
         status,
@@ -109,6 +110,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'น้ำตาลในเลือด (FBS)',
+        date: fbs.Date,
         value: val,
         unit: fbs.Unit || 'mg/dL',
         status,
@@ -141,6 +143,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'น้ำตาลสะสม (HbA1c)',
+        date: hba1c.Date,
         value: val,
         unit: hba1c.Unit || '%',
         status,
@@ -178,6 +181,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'ไขมันเลว (LDL)',
+        date: ldl.Date,
         value: val,
         unit: ldl.Unit || 'mg/dL',
         status,
@@ -213,6 +217,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'ไขมันดี (HDL)',
+        date: hdl.Date,
         value: val,
         unit: hdl.Unit || 'mg/dL',
         status,
@@ -245,6 +250,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'ไตรกลีเซอไรด์ (Triglyceride)',
+        date: tg.Date,
         value: val,
         unit: tg.Unit || 'mg/dL',
         status,
@@ -281,6 +287,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'อัตราส่วน TC/HDL',
+        date: tc.Date,
         value: ratio.toFixed(1),
         unit: '',
         status,
@@ -315,6 +322,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'อัตราส่วน LDL/HDL',
+        date: ldl.Date,
         value: ratio.toFixed(1),
         unit: '',
         status,
@@ -349,6 +357,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'อัตราส่วน TG/HDL',
+        date: tg.Date,
         value: ratio.toFixed(1),
         unit: '',
         status,
@@ -382,6 +391,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'การอักเสบ (hs-CRP)',
+        date: crp.Date,
         value: val,
         unit: crp.Unit || 'mg/L',
         status,
@@ -412,6 +422,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'การอักเสบ (ESR)',
+        date: esr.Date,
         value: val,
         unit: esr.Unit || 'mm/hr',
         status,
@@ -441,6 +452,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งลำไส้ (CEA)',
+        date: cea.Date,
         value: val,
         unit: cea.Unit || 'ng/mL',
         status,
@@ -469,6 +481,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งตับ (AFP)',
+        date: afp.Date,
         value: val,
         unit: afp.Unit || 'ng/mL',
         status,
@@ -497,6 +510,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งต่อมลูกหมาก (PSA)',
+        date: psa.Date,
         value: val,
         unit: psa.Unit || 'ng/mL',
         status,
@@ -525,6 +539,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งรังไข่ (CA 125)',
+        date: ca125.Date,
         value: val,
         unit: ca125.Unit || 'U/mL',
         status,
@@ -553,6 +568,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งเต้านม (CA 15-3)',
+        date: ca153.Date,
         value: val,
         unit: ca153.Unit || 'U/mL',
         status,
@@ -581,6 +597,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'สารบ่งชี้มะเร็งตับอ่อน (CA 19-9)',
+        date: ca199.Date,
         value: val,
         unit: ca199.Unit || 'U/mL',
         status,
@@ -619,6 +636,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'ภาวะขาดน้ำ/โปรตีน (BUN/Cr Ratio)',
+        date: cr.Date,
         value: ratio.toFixed(1),
         unit: '',
         status,
@@ -679,6 +697,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'การทำงานของไต (eGFR)',
+        date: cr.Date,
         value: egfr.toFixed(1),
         unit: 'mL/min/1.73m²',
         status,
@@ -716,6 +735,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
 
       results.push({
         category: 'การทำงานของไทรอยด์ (TSH)',
+        date: tsh.Date,
         value: val,
         unit: tsh.Unit || 'mIU/L',
         status,
@@ -725,7 +745,113 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
-    return results;
+    const criteriaMap: Record<string, string[]> = {
+      'ดัชนีมวลกาย (BMI)': [
+        '< 18.5 : น้ำหนักน้อย (Underweight)',
+        '18.5 - 22.9 : ปกติ (Normal)',
+        '23.0 - 24.9 : น้ำหนักเกิน (Overweight)',
+        '25.0 - 29.9 : อ้วนระดับ 1 (Obese Class I)',
+        '>= 30.0 : อ้วนระดับ 2 (Obese Class II)'
+      ],
+      'น้ำตาลในเลือด (FBS)': [
+        '< 100 : ปกติ (Normal)',
+        '100 - 125 : เสี่ยงเบาหวาน (Prediabetes)',
+        '>= 126 : เบาหวาน (Diabetes)'
+      ],
+      'น้ำตาลสะสม (HbA1c)': [
+        '< 5.7 : ปกติ (Normal)',
+        '5.7 - 6.4 : เสี่ยงเบาหวาน (Prediabetes)',
+        '>= 6.5 : เบาหวาน (Diabetes)'
+      ],
+      'ไขมันเลว (LDL)': [
+        '< 100 : ดีมาก (Optimal)',
+        '100 - 129 : ดี (Near Optimal)',
+        '130 - 159 : ค่อนข้างสูง (Borderline High)',
+        '>= 160 : สูง (High)'
+      ],
+      'ไขมันดี (HDL)': [
+        isFemale ? '< 50 : ต่ำ (Low)' : '< 40 : ต่ำ (Low)',
+        isFemale ? '>= 50 : ปกติ (Normal)' : '>= 40 : ปกติ (Normal)',
+        '>= 60 : ดีมาก (Optimal)'
+      ],
+      'ไตรกลีเซอไรด์ (Triglyceride)': [
+        '< 150 : ปกติ (Normal)',
+        '150 - 199 : ค่อนข้างสูง (Borderline High)',
+        '>= 200 : สูง (High)'
+      ],
+      'อัตราส่วน TC/HDL': [
+        '< 3.5 : ดีมาก (Optimal)',
+        '3.5 - 4.9 : ปกติ (Normal)',
+        '>= 5.0 : เสี่ยงสูง (High Risk)'
+      ],
+      'อัตราส่วน LDL/HDL': [
+        '< 2.5 : ดีมาก (Optimal)',
+        '2.5 - 3.2 : ปกติ (Normal)',
+        '>= 3.3 : เสี่ยงสูง (High Risk)'
+      ],
+      'อัตราส่วน TG/HDL': [
+        '< 2.0 : ปกติ (Normal)',
+        '2.0 - 2.9 : เริ่มเสี่ยง (Borderline)',
+        '>= 3.0 : ดื้ออินซูลิน (Insulin Resistance)'
+      ],
+      'การอักเสบ (hs-CRP)': [
+        '< 1.0 : ความเสี่ยงต่ำ (Low Risk)',
+        '1.0 - 3.0 : ความเสี่ยงปานกลาง (Average Risk)',
+        '> 3.0 : ความเสี่ยงสูง (High Risk)'
+      ],
+      'การอักเสบ (ESR)': [
+        isFemale ? '<= 20 : ปกติ (Normal)' : '<= 15 : ปกติ (Normal)',
+        isFemale ? '> 20 : สูง (High)' : '> 15 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งลำไส้ (CEA)': [
+        '<= 5.0 : ปกติ (Normal)',
+        '> 5.0 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งตับ (AFP)': [
+        '<= 10.0 : ปกติ (Normal)',
+        '> 10.0 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งต่อมลูกหมาก (PSA)': [
+        '<= 4.0 : ปกติ (Normal)',
+        '> 4.0 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งรังไข่ (CA 125)': [
+        '<= 35.0 : ปกติ (Normal)',
+        '> 35.0 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งเต้านม (CA 15-3)': [
+        '<= 30.0 : ปกติ (Normal)',
+        '> 30.0 : สูง (High)'
+      ],
+      'สารบ่งชี้มะเร็งตับอ่อน (CA 19-9)': [
+        '<= 37.0 : ปกติ (Normal)',
+        '> 37.0 : สูง (High)'
+      ],
+      'ภาวะขาดน้ำ/โปรตีน (BUN/Cr Ratio)': [
+        '< 10 : ต่ำกว่าเกณฑ์ (Low Ratio)',
+        '10 - 20 : ปกติ (Normal Hydration)',
+        '> 20 : ภาวะขาดน้ำ (Dehydration) / โปรตีนสูง'
+      ],
+      'การทำงานของไต (eGFR)': [
+        '>= 90 : ปกติ (Stage 1)',
+        '60 - 89 : ไตเสื่อมระยะเริ่มต้น (Stage 2)',
+        '45 - 59 : ไตเสื่อมระยะปานกลาง (Stage 3a)',
+        '30 - 44 : ไตเสื่อมระยะปานกลางถึงมาก (Stage 3b)',
+        '15 - 29 : ไตเสื่อมระยะรุนแรง (Stage 4)',
+        '< 15 : ไตวายระยะสุดท้าย (Stage 5)'
+      ],
+      'การทำงานของไทรอยด์ (TSH)': [
+        '< 0.4 : ต่ำกว่าเกณฑ์ (Hyperthyroidism Risk)',
+        '0.4 - 4.0 : ปกติ (Normal)',
+        '4.1 - 10.0 : ค่อนข้างสูง (Subclinical Hypothyroidism)',
+        '> 10.0 : สูง (Hypothyroidism)'
+      ]
+    };
+
+    return results.map(r => ({
+      ...r,
+      criteria: criteriaMap[r.category] || []
+    }));
   }, [vitals, labs, profile]);
 
   if (analysis.length === 0) {
@@ -743,13 +869,16 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         {analysis.map((item, index) => {
           const Icon = item.icon;
           return (
-            <div key={index} className={clsx("p-5 rounded-2xl border", item.color)}>
+            <div key={index} className={clsx("p-5 rounded-2xl border flex flex-col", item.color)}>
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/60 rounded-xl">
                     <Icon className="w-5 h-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-900">{item.category}</h3>
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{item.category}</h3>
+                    {item.date && <p className="text-xs font-medium opacity-70 mt-0.5">ข้อมูลเมื่อ: {item.date}</p>}
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-2xl font-bold text-slate-900">{item.value}</span>
@@ -757,7 +886,7 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 mb-4 flex-grow">
                 <div className="inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-semibold bg-white/60 shadow-sm">
                   {item.status}
                 </div>
@@ -765,6 +894,20 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
                   {item.advice}
                 </p>
               </div>
+
+              {item.criteria && item.criteria.length > 0 && (
+                <div className="mt-auto pt-4 border-t border-black/5">
+                  <p className="text-xs font-semibold opacity-70 mb-2">เกณฑ์การประเมิน:</p>
+                  <ul className="space-y-1">
+                    {item.criteria.map((c: string, i: number) => (
+                      <li key={i} className="text-[11px] font-medium opacity-80 flex items-start gap-1.5">
+                        <span className="w-1 h-1 rounded-full bg-current mt-1.5 opacity-50 shrink-0"></span>
+                        <span>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           );
         })}
