@@ -92,6 +92,18 @@ export default function Dashboard() {
     if (name === 't3' || name.includes('triiodothyronine') && !name.includes('free')) acc[curr.Date].t3 = val;
     if (name === 't4' || name.includes('thyroxine') && !name.includes('free')) acc[curr.Date].t4 = val;
 
+    // Inflammation
+    if (name === 'hs-crp' || name === 'hscrp' || name.includes('c-reactive protein')) acc[curr.Date].crp = val;
+    if (name === 'esr' || name.includes('erythrocyte sedimentation rate')) acc[curr.Date].esr = val;
+
+    // Tumor Markers
+    if (name === 'cea' || name.includes('carcinoembryonic')) acc[curr.Date].cea = val;
+    if (name === 'afp' || name.includes('alpha-fetoprotein') || name.includes('alpha fetoprotein')) acc[curr.Date].afp = val;
+    if (name === 'psa' || name.includes('prostate specific antigen')) acc[curr.Date].psa = val;
+    if (name === 'ca 125' || name === 'ca125') acc[curr.Date].ca125 = val;
+    if (name === 'ca 15-3' || name === 'ca15-3' || name === 'ca153') acc[curr.Date].ca153 = val;
+    if (name === 'ca 19-9' || name === 'ca19-9' || name === 'ca199') acc[curr.Date].ca199 = val;
+
     return acc;
   }, {});
 
@@ -109,6 +121,11 @@ export default function Dashboard() {
       }
       d.egfr = parseFloat(egfr.toFixed(1));
     }
+    
+    // Lipid Ratios
+    if (d.tc && d.hdl) d.tc_hdl = parseFloat((d.tc / d.hdl).toFixed(2));
+    if (d.ldl && d.hdl) d.ldl_hdl = parseFloat((d.ldl / d.hdl).toFixed(2));
+    if (d.tg && d.hdl) d.tg_hdl = parseFloat((d.tg / d.hdl).toFixed(2));
   });
 
   const egfrData: any[] = labTrendData.filter((d: any) => d.egfr !== undefined);
@@ -116,6 +133,9 @@ export default function Dashboard() {
   const liverData: any[] = labTrendData.filter((d: any) => d.ast !== undefined || d.alt !== undefined);
   const lipidData: any[] = labTrendData.filter((d: any) => d.ldl !== undefined || d.hdl !== undefined || d.tg !== undefined || d.tc !== undefined);
   const thyroidData: any[] = labTrendData.filter((d: any) => d.tsh !== undefined || d.ft3 !== undefined || d.ft4 !== undefined || d.t3 !== undefined || d.t4 !== undefined);
+  const lipidRatioData: any[] = labTrendData.filter((d: any) => d.tc_hdl !== undefined || d.ldl_hdl !== undefined || d.tg_hdl !== undefined);
+  const inflammationData: any[] = labTrendData.filter((d: any) => d.crp !== undefined || d.esr !== undefined);
+  const tumorMarkerData: any[] = labTrendData.filter((d: any) => d.cea !== undefined || d.afp !== undefined || d.psa !== undefined || d.ca125 !== undefined || d.ca153 !== undefined || d.ca199 !== undefined);
 
   const ChartCard = ({ title, data, lines, interpretation, dualAxis }: { title: string, data: any[], lines: any[], interpretation: string, dualAxis?: boolean }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
@@ -292,6 +312,27 @@ export default function Dashboard() {
         />
 
         <ChartCard 
+          title="อัตราส่วนไขมันในเลือด (Lipid Ratios)" 
+          data={lipidRatioData} 
+          lines={[
+            { key: 'tc_hdl', color: '#64748b', name: 'TC/HDL' },
+            { key: 'ldl_hdl', color: '#e11d48', name: 'LDL/HDL' },
+            { key: 'tg_hdl', color: '#f59e0b', name: 'TG/HDL' }
+          ]}
+          interpretation="TC/HDL ควร < 5 (ดีที่สุด < 3.5), LDL/HDL ควร < 3.3 (ยิ่งน้อยยิ่งดี), TG/HDL ควร < 2 (บ่งบอกภาวะดื้ออินซูลินหาก > 2)"
+        />
+
+        <ChartCard 
+          title="ค่าการอักเสบในร่างกาย (Inflammation Markers)" 
+          data={inflammationData} 
+          lines={[
+            { key: 'crp', color: '#ef4444', name: 'hs-CRP (mg/L)' },
+            { key: 'esr', color: '#f97316', name: 'ESR (mm/hr)' }
+          ]}
+          interpretation="hs-CRP ควร < 1.0 mg/L (ความเสี่ยงโรคหัวใจต่ำ), ESR ควร < 15-20 mm/hr บ่งบอกถึงระดับการอักเสบซ่อนเร้นในร่างกาย"
+        />
+
+        <ChartCard 
           title="ฮอร์โมนไทรอยด์ (Thyroid Profile)" 
           data={thyroidData} 
           lines={[
@@ -302,6 +343,20 @@ export default function Dashboard() {
             { key: 't4', color: '#3b82f6', name: 'T4' }
           ]}
           interpretation="TSH ปกติ 0.4-4.0 mIU/L (ค่าสูง=ไทรอยด์ทำงานต่ำ, ค่าต่ำ=ไทรอยด์เป็นพิษ), Free T3 ปกติ 2.0-4.4 pg/mL, Free T4 ปกติ 0.9-1.7 ng/dL"
+        />
+
+        <ChartCard 
+          title="สารบ่งชี้มะเร็ง (Tumor Markers)" 
+          data={tumorMarkerData} 
+          lines={[
+            { key: 'cea', color: '#64748b', name: 'CEA (ลำไส้)' },
+            { key: 'afp', color: '#f59e0b', name: 'AFP (ตับ)' },
+            { key: 'psa', color: '#3b82f6', name: 'PSA (ต่อมลูกหมาก)' },
+            { key: 'ca125', color: '#ec4899', name: 'CA 125 (รังไข่)' },
+            { key: 'ca153', color: '#d946ef', name: 'CA 15-3 (เต้านม)' },
+            { key: 'ca199', color: '#14b8a6', name: 'CA 19-9 (ตับอ่อน/ทางเดินอาหาร)' }
+          ]}
+          interpretation="CEA < 5 ng/mL, AFP < 10 ng/mL, PSA < 4 ng/mL, CA 125 < 35 U/mL, CA 15-3 < 30 U/mL, CA 19-9 < 37 U/mL (ค่าสูงไม่ได้แปลว่าเป็นมะเร็งเสมอไป ควรปรึกษาแพทย์)"
         />
       </div>
 

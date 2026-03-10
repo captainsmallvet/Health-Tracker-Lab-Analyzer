@@ -254,6 +254,342 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    // Lipid Ratios
+    const tc = getLatestLab(['Total Cholesterol', 'Cholesterol', 'TC']);
+    if (tc && tc.Value && hdl && hdl.Value) {
+      const tcVal = parseFloat(tc.Value);
+      const hdlVal = parseFloat(hdl.Value);
+      const ratio = tcVal / hdlVal;
+      
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (ratio < 3.5) {
+        status = 'ดีมาก (Optimal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ความเสี่ยงโรคหัวใจต่ำมาก';
+      } else if (ratio < 5) {
+        status = 'ปกติ (Normal)';
+        color = 'text-blue-600 bg-blue-50 border-blue-200';
+        advice = 'ความเสี่ยงโรคหัวใจอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'เสี่ยงสูง (High Risk)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ความเสี่ยงโรคหัวใจสูง ควรปรับเปลี่ยนพฤติกรรมและพบแพทย์';
+      }
+
+      results.push({
+        category: 'อัตราส่วน TC/HDL',
+        value: ratio.toFixed(1),
+        unit: '',
+        status,
+        color,
+        icon: Heart,
+        advice
+      });
+    }
+
+    if (ldl && ldl.Value && hdl && hdl.Value) {
+      const ldlVal = parseFloat(ldl.Value);
+      const hdlVal = parseFloat(hdl.Value);
+      const ratio = ldlVal / hdlVal;
+      
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (ratio < 2.5) {
+        status = 'ดีมาก (Optimal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ความเสี่ยงหลอดเลือดอุดตันต่ำมาก';
+      } else if (ratio < 3.3) {
+        status = 'ปกติ (Normal)';
+        color = 'text-blue-600 bg-blue-50 border-blue-200';
+        advice = 'ความเสี่ยงหลอดเลือดอุดตันอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'เสี่ยงสูง (High Risk)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ความเสี่ยงหลอดเลือดอุดตันสูง ควรควบคุมไขมันเลวและเพิ่มไขมันดี';
+      }
+
+      results.push({
+        category: 'อัตราส่วน LDL/HDL',
+        value: ratio.toFixed(1),
+        unit: '',
+        status,
+        color,
+        icon: Heart,
+        advice
+      });
+    }
+
+    if (tg && tg.Value && hdl && hdl.Value) {
+      const tgVal = parseFloat(tg.Value);
+      const hdlVal = parseFloat(hdl.Value);
+      const ratio = tgVal / hdlVal;
+      
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (ratio < 2) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ไม่มีภาวะดื้ออินซูลิน';
+      } else if (ratio >= 2 && ratio < 3) {
+        status = 'เริ่มเสี่ยง (Borderline)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'เริ่มมีภาวะดื้ออินซูลิน ควรลดแป้งและน้ำตาล';
+      } else {
+        status = 'ดื้ออินซูลิน (Insulin Resistance)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'มีภาวะดื้ออินซูลินสูง เสี่ยงต่อเบาหวานและโรคหัวใจ ควรลดแป้ง น้ำตาล และลดน้ำหนัก';
+      }
+
+      results.push({
+        category: 'อัตราส่วน TG/HDL',
+        value: ratio.toFixed(1),
+        unit: '',
+        status,
+        color,
+        icon: Heart,
+        advice
+      });
+    }
+
+    // Inflammation Markers
+    const crp = getLatestLab(['hs-CRP', 'hsCRP', 'C-Reactive Protein']);
+    if (crp && crp.Value) {
+      const val = parseFloat(crp.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val < 1.0) {
+        status = 'ความเสี่ยงต่ำ (Low Risk)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ระดับการอักเสบในร่างกายต่ำ ความเสี่ยงโรคหัวใจต่ำ';
+      } else if (val >= 1.0 && val <= 3.0) {
+        status = 'ความเสี่ยงปานกลาง (Average Risk)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'มีระดับการอักเสบปานกลาง ควรดูแลสุขภาพและออกกำลังกาย';
+      } else {
+        status = 'ความเสี่ยงสูง (High Risk)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'มีระดับการอักเสบสูง ความเสี่ยงโรคหัวใจสูง ควรพบแพทย์เพื่อหาสาเหตุ';
+      }
+
+      results.push({
+        category: 'การอักเสบ (hs-CRP)',
+        value: val,
+        unit: crp.Unit || 'mg/L',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const esr = getLatestLab(['ESR', 'Erythrocyte Sedimentation Rate']);
+    if (esr && esr.Value) {
+      const val = parseFloat(esr.Value);
+      const threshold = isFemale ? 20 : 15;
+      
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= threshold) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ระดับการอักเสบในร่างกายปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'มีภาวะอักเสบซ่อนเร้นในร่างกาย ควรพบแพทย์เพื่อหาสาเหตุ';
+      }
+
+      results.push({
+        category: 'การอักเสบ (ESR)',
+        value: val,
+        unit: esr.Unit || 'mm/hr',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    // Tumor Markers
+    const cea = getLatestLab(['CEA', 'Carcinoembryonic']);
+    if (cea && cea.Value) {
+      const val = parseFloat(cea.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 5.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งลำไส้อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากการสูบบุหรี่ ลำไส้อักเสบ หรือมีความเสี่ยงมะเร็ง ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งลำไส้ (CEA)',
+        value: val,
+        unit: cea.Unit || 'ng/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const afp = getLatestLab(['AFP', 'Alpha-fetoprotein', 'Alpha fetoprotein']);
+    if (afp && afp.Value) {
+      const val = parseFloat(afp.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 10.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งตับอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากตับอักเสบ ตับแข็ง หรือมีความเสี่ยงมะเร็งตับ ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งตับ (AFP)',
+        value: val,
+        unit: afp.Unit || 'ng/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const psa = getLatestLab(['PSA', 'Prostate Specific Antigen']);
+    if (psa && psa.Value && isMale) {
+      const val = parseFloat(psa.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 4.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งต่อมลูกหมากอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากต่อมลูกหมากโต อักเสบ หรือมีความเสี่ยงมะเร็ง ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งต่อมลูกหมาก (PSA)',
+        value: val,
+        unit: psa.Unit || 'ng/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const ca125 = getLatestLab(['CA 125', 'CA125']);
+    if (ca125 && ca125.Value && isFemale) {
+      const val = parseFloat(ca125.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 35.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งรังไข่อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากซีสต์ เยื่อบุโพรงมดลูกเจริญผิดที่ หรือมีความเสี่ยงมะเร็ง ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งรังไข่ (CA 125)',
+        value: val,
+        unit: ca125.Unit || 'U/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const ca153 = getLatestLab(['CA 15-3', 'CA15-3', 'CA153']);
+    if (ca153 && ca153.Value && isFemale) {
+      const val = parseFloat(ca153.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 30.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งเต้านมอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากเนื้องอกชนิดไม่ร้ายแรง หรือมีความเสี่ยงมะเร็ง ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งเต้านม (CA 15-3)',
+        value: val,
+        unit: ca153.Unit || 'U/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const ca199 = getLatestLab(['CA 19-9', 'CA19-9', 'CA199']);
+    if (ca199 && ca199.Value) {
+      const val = parseFloat(ca199.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 37.0) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่าสารบ่งชี้มะเร็งตับอ่อน/ทางเดินอาหารอยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่าสูงกว่าปกติ อาจเกิดจากนิ่วในถุงน้ำดี ตับอ่อนอักเสบ หรือมีความเสี่ยงมะเร็ง ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'สารบ่งชี้มะเร็งตับอ่อน (CA 19-9)',
+        value: val,
+        unit: ca199.Unit || 'U/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
     // 4. Hydration & Protein (BUN/Creatinine)
     const bun = getLatestLab(['BUN', 'Blood Urea Nitrogen']);
     const cr = getLatestLab(['Creatinine', 'Cr']);
