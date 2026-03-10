@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2 } from 'lucide-react';
+import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Medications() {
@@ -31,6 +31,7 @@ export default function Medications() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [sortOption, setSortOption] = useState('default');
 
   useEffect(() => {
     fetchMeds();
@@ -234,7 +235,7 @@ export default function Medications() {
 
   // Filtering logic
   const filteredMeds = useMemo(() => {
-    return meds.filter(med => {
+    let result = meds.filter(med => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -262,7 +263,35 @@ export default function Medications() {
 
       return true;
     });
-  }, [meds, searchQuery, filterStartDate, filterEndDate]);
+
+    // Sorting logic
+    if (sortOption !== 'default') {
+      result = [...result].sort((a, b) => {
+        if (sortOption === 'name_asc') {
+          return (a.MedicationName || '').localeCompare(b.MedicationName || '', 'th');
+        } else if (sortOption === 'start_desc') {
+          const dateA = a.StartDate ? new Date(a.StartDate).getTime() : 0;
+          const dateB = b.StartDate ? new Date(b.StartDate).getTime() : 0;
+          return dateB - dateA;
+        } else if (sortOption === 'start_asc') {
+          const dateA = a.StartDate ? new Date(a.StartDate).getTime() : Infinity;
+          const dateB = b.StartDate ? new Date(b.StartDate).getTime() : Infinity;
+          return dateA - dateB;
+        } else if (sortOption === 'end_desc') {
+          const dateA = a.EndDate ? new Date(a.EndDate).getTime() : 0;
+          const dateB = b.EndDate ? new Date(b.EndDate).getTime() : 0;
+          return dateB - dateA;
+        } else if (sortOption === 'end_asc') {
+          const dateA = a.EndDate ? new Date(a.EndDate).getTime() : Infinity;
+          const dateB = b.EndDate ? new Date(b.EndDate).getTime() : Infinity;
+          return dateA - dateB;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [meds, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
   const activeMeds = filteredMeds.filter(med => !med.EndDate || new Date(med.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
   const pastMeds = filteredMeds.filter(med => med.EndDate && new Date(med.EndDate) < new Date(new Date().setHours(0,0,0,0)));
@@ -583,7 +612,7 @@ export default function Medications() {
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-4 items-start lg:items-center flex-wrap">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Filter className="w-4 h-4 text-slate-400" />
           <span className="text-sm font-medium text-slate-700">ตัวกรอง:</span>
@@ -604,6 +633,23 @@ export default function Medications() {
             className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full sm:w-auto"
           />
         </div>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <ArrowUpDown className="w-4 h-4 text-slate-400" />
+          <select
+            value={sortOption}
+            onChange={e => setSortOption(e.target.value)}
+            className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full sm:w-auto bg-white"
+          >
+            <option value="default">เรียงตามลำดับที่เพิ่ม</option>
+            <option value="name_asc">ชื่อยา (ก-ฮ, A-Z)</option>
+            <option value="start_desc">วันเริ่มใช้ยา (ใหม่สุดก่อน)</option>
+            <option value="start_asc">วันเริ่มใช้ยา (เก่าสุดก่อน)</option>
+            <option value="end_desc">วันหยุดยา (ใหม่สุดก่อน)</option>
+            <option value="end_asc">วันหยุดยา (เก่าสุดก่อน)</option>
+          </select>
+        </div>
+
         <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
           <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -615,9 +661,9 @@ export default function Medications() {
               className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full"
             />
           </div>
-          {(filterStartDate || filterEndDate || searchQuery) && (
+          {(filterStartDate || filterEndDate || searchQuery || sortOption !== 'default') && (
             <button 
-              onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); }}
+              onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); setSortOption('default'); }}
               className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors whitespace-nowrap"
             >
               ล้างตัวกรอง
