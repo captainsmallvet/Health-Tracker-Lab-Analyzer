@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Medications() {
-  const [meds, setMeds] = useState([]);
+  const [meds, setMeds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [extractedData, setExtractedData] = useState<any[] | null>(null);
@@ -11,14 +11,25 @@ export default function Medications() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
-  // Manual Entry State
+  // Manual Entry & Edit State
   const [showManualForm, setShowManualForm] = useState(false);
-  const [manualMed, setManualMed] = useState({
+  const [editingMed, setEditingMed] = useState<any>(null);
+  
+  const defaultMed = {
     MedicationName: '',
     Dosage: '',
     Frequency: '',
-    Purpose: ''
-  });
+    Purpose: '',
+    StartDate: new Date().toISOString().split('T')[0],
+    EndDate: '',
+    Notes: ''
+  };
+  const [manualMed, setManualMed] = useState(defaultMed);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   useEffect(() => {
     fetchMeds();
@@ -46,6 +57,7 @@ export default function Medications() {
     setError('');
     setExtractedData(null);
     setShowManualForm(false);
+    setEditingMed(null);
 
     const formData = new FormData();
     formData.append('image', file);
@@ -63,7 +75,14 @@ export default function Medications() {
       }
       
       const data = await res.json();
-      setExtractedData(data);
+      // Ensure StartDate is populated
+      const enrichedData = data.map((item: any) => ({
+        ...item,
+        StartDate: item.StartDate || item.startDate || new Date().toISOString().split('T')[0],
+        EndDate: item.EndDate || item.endDate || '',
+        Notes: item.Notes || item.notes || ''
+      }));
+      setExtractedData(enrichedData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -79,7 +98,10 @@ export default function Medications() {
       MedicationName: item.MedicationName || item.medicationName || '',
       Dosage: item.Dosage || item.dosage || '',
       Frequency: item.Frequency || item.frequency || '',
-      Purpose: item.Purpose || item.purpose || ''
+      Purpose: item.Purpose || item.purpose || '',
+      StartDate: item.StartDate || '',
+      EndDate: item.EndDate || '',
+      Notes: item.Notes || ''
     }));
 
     await saveToServer(formattedData);
@@ -89,14 +111,32 @@ export default function Medications() {
     e.preventDefault();
     setSaving(true);
     
-    const formattedData = [{
-      MedicationName: manualMed.MedicationName,
-      Dosage: manualMed.Dosage,
-      Frequency: manualMed.Frequency,
-      Purpose: manualMed.Purpose
-    }];
-
-    await saveToServer(formattedData);
+    if (editingMed) {
+      // Update existing
+      try {
+        const res = await fetch(`/api/data/Medications/${editingMed._rowIndex}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(manualMed)
+        });
+        if (res.ok) {
+          setEditingMed(null);
+          setShowManualForm(false);
+          setManualMed(defaultMed);
+          fetchMeds();
+        } else {
+          throw new Error('Failed to update');
+        }
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // Create new
+      const formattedData = [manualMed];
+      await saveToServer(formattedData);
+    }
   };
 
   const saveToServer = async (dataToSave: any[]) => {
@@ -110,7 +150,7 @@ export default function Medications() {
       if (res.ok) {
         setExtractedData(null);
         setShowManualForm(false);
-        setManualMed({ MedicationName: '', Dosage: '', Frequency: '', Purpose: '' });
+        setManualMed(defaultMed);
         fetchMeds();
       } else {
         throw new Error('Failed to save');
@@ -129,12 +169,80 @@ export default function Medications() {
     setExtractedData(newData);
   };
 
+  const openEditModal = (med: any) => {
+    setEditingMed(med);
+    setManualMed({
+      MedicationName: med.MedicationName || '',
+      Dosage: med.Dosage || '',
+      Frequency: med.Frequency || '',
+      Purpose: med.Purpose || '',
+      StartDate: med.StartDate || '',
+      EndDate: med.EndDate || '',
+      Notes: med.Notes || ''
+    });
+    setShowManualForm(true);
+    setExtractedData(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Calculate duration string
+  const getDuration = (start: string, end: string) => {
+    if (!start) return '-';
+    const startDate = new Date(start);
+    const endDate = end ? new Date(end) : new Date();
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '-';
+    
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return '1 วัน';
+    if (diffDays < 30) return `${diffDays} วัน`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} เดือน ${diffDays % 30} วัน`;
+    return `${Math.floor(diffDays / 365)} ปี ${Math.floor((diffDays % 365) / 30)} เดือน`;
+  };
+
+  // Filtering logic
+  const filteredMeds = useMemo(() => {
+    return meds.filter(med => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          (med.MedicationName || '').toLowerCase().includes(query) ||
+          (med.Purpose || '').toLowerCase().includes(query) ||
+          (med.Notes || '').toLowerCase().includes(query) ||
+          (med.GenericName || '').toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Date Range filter
+      if (filterStartDate || filterEndDate) {
+        const medStart = med.StartDate ? new Date(med.StartDate) : new Date(0);
+        const medEnd = med.EndDate ? new Date(med.EndDate) : new Date(9999, 11, 31);
+        
+        const filterStart = filterStartDate ? new Date(filterStartDate) : new Date(0);
+        const filterEnd = filterEndDate ? new Date(filterEndDate) : new Date(9999, 11, 31);
+        
+        // Check if the medication period overlaps with the filter period
+        if (medStart > filterEnd || medEnd < filterStart) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [meds, searchQuery, filterStartDate, filterEndDate]);
+
+  const activeMeds = filteredMeds.filter(med => !med.EndDate || new Date(med.EndDate) >= new Date(new Date().setHours(0,0,0,0)));
+  const pastMeds = filteredMeds.filter(med => med.EndDate && new Date(med.EndDate) < new Date(new Date().setHours(0,0,0,0)));
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Medications</h1>
-          <p className="text-slate-500 mt-2">Manage your regular medications using AI label scanning or manual entry.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">ประวัติการใช้ยา (Medications)</h1>
+          <p className="text-slate-500 mt-2">จัดการรายการยาที่ใช้อยู่ปัจจุบันและประวัติการใช้ยาในอดีต</p>
         </div>
         <div className="flex items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
           <label className="text-sm font-medium text-slate-700 whitespace-nowrap">AI Model:</label>
@@ -144,15 +252,15 @@ export default function Medications() {
             disabled={uploading || saving}
             className="px-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
           >
-<option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
-<option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
-<option value="gemini-flash-latest">Gemini Flash Latest</option>
-<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
-<option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
-<option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+            <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+            <option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+            <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+            <option value="gemini-flash-latest">Gemini Flash Latest</option>
+            <option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash  (Default)</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+            <option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
           </select>
         </div>
       </header>
@@ -176,22 +284,28 @@ export default function Medications() {
               )}
             </div>
             <div>
-              <h3 className="font-semibold text-slate-900">Upload Label (AI)</h3>
-              <p className="text-sm text-slate-500">Scan a medication label or prescription</p>
+              <h3 className="font-semibold text-slate-900">สแกนฉลากยา (AI)</h3>
+              <p className="text-sm text-slate-500">อัปโหลดรูปฉลากยาเพื่อดึงข้อมูลอัตโนมัติ</p>
             </div>
           </div>
         </div>
 
         <button 
-          onClick={() => { setShowManualForm(true); setExtractedData(null); setError(''); }}
+          onClick={() => { 
+            setEditingMed(null);
+            setManualMed(defaultMed);
+            setShowManualForm(true); 
+            setExtractedData(null); 
+            setError(''); 
+          }}
           className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex items-center gap-4 hover:border-emerald-300 transition-colors text-left"
         >
           <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
             <Plus className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">Add Manually</h3>
-            <p className="text-sm text-slate-500">Type in medication details yourself</p>
+            <h3 className="font-semibold text-slate-900">เพิ่มข้อมูลยาด้วยตัวเอง</h3>
+            <p className="text-sm text-slate-500">กรอกรายละเอียดการใช้ยาด้วยตนเอง</p>
           </div>
         </button>
       </div>
@@ -203,16 +317,16 @@ export default function Medications() {
         </div>
       )}
 
-      {/* Manual Entry Form */}
+      {/* Manual Entry / Edit Form */}
       {showManualForm && (
         <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden ring-1 ring-emerald-50">
           <div className="p-6 border-b border-emerald-50 bg-emerald-50/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Plus className="w-5 h-5 text-emerald-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Add Medication Manually</h2>
+              {editingMed ? <Edit2 className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
+              <h2 className="text-lg font-semibold text-slate-900">{editingMed ? 'แก้ไขข้อมูลยา' : 'เพิ่มข้อมูลยา'}</h2>
             </div>
             <button 
-              onClick={() => setShowManualForm(false)}
+              onClick={() => { setShowManualForm(false); setEditingMed(null); }}
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
             >
               <X className="w-5 h-5" />
@@ -222,55 +336,89 @@ export default function Medications() {
           <form onSubmit={handleSaveManual} className="p-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Medication Name *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อยา *</label>
                 <input 
                   type="text" 
                   required
                   value={manualMed.MedicationName}
                   onChange={e => setManualMed({...manualMed, MedicationName: e.target.value})}
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  placeholder="e.g., Paracetamol"
+                  placeholder="เช่น Paracetamol"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Dosage</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">ขนาด/ปริมาณ</label>
                 <input 
                   type="text" 
                   value={manualMed.Dosage}
                   onChange={e => setManualMed({...manualMed, Dosage: e.target.value})}
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  placeholder="e.g., 500 mg"
+                  placeholder="เช่น 500 mg"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Frequency</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">วิธีใช้/ความถี่</label>
                 <input 
                   type="text" 
                   value={manualMed.Frequency}
                   onChange={e => setManualMed({...manualMed, Frequency: e.target.value})}
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  placeholder="e.g., 1 tablet after meals"
+                  placeholder="เช่น 1 เม็ด หลังอาหารเช้า-เย็น"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Purpose</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">สรรพคุณ/ข้อบ่งใช้</label>
                 <input 
                   type="text" 
                   value={manualMed.Purpose}
                   onChange={e => setManualMed({...manualMed, Purpose: e.target.value})}
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                  placeholder="e.g., Pain relief"
+                  placeholder="เช่น ลดไข้ บรรเทาปวด"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">วันที่เริ่มใช้ยา</label>
+                <input 
+                  type="date" 
+                  value={manualMed.StartDate}
+                  onChange={e => setManualMed({...manualMed, StartDate: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">วันหยุดยา (เว้นว่างถ้ายังใช้อยู่)</label>
+                <input 
+                  type="date" 
+                  value={manualMed.EndDate}
+                  onChange={e => setManualMed({...manualMed, EndDate: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">หมายเหตุ / ผลข้างเคียง</label>
+                <textarea 
+                  value={manualMed.Notes}
+                  onChange={e => setManualMed({...manualMed, Notes: e.target.value})}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none min-h-[80px]"
+                  placeholder="เช่น กินเพื่อรักษาอาการเจ็บไหล่, กินแล้วมีอาการคลื่นไส้"
                 />
               </div>
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-3">
+              <button 
+                type="button"
+                onClick={() => { setShowManualForm(false); setEditingMed(null); }}
+                className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
               <button 
                 type="submit"
                 disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Medication'}
+                {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
               </button>
             </div>
           </form>
@@ -283,7 +431,7 @@ export default function Medications() {
           <div className="p-6 border-b border-indigo-50 bg-indigo-50/30 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Review Extracted Medications</h2>
+              <h2 className="text-lg font-semibold text-slate-900">ตรวจสอบข้อมูลที่สแกนได้</h2>
             </div>
             <button 
               onClick={() => setExtractedData(null)}
@@ -297,7 +445,7 @@ export default function Medications() {
             {extractedData.map((item, i) => (
               <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Medication Name</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">ชื่อยา</label>
                   <input 
                     type="text" 
                     value={item.MedicationName || item.medicationName || ''}
@@ -306,7 +454,7 @@ export default function Medications() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Dosage</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">ขนาด/ปริมาณ</label>
                   <input 
                     type="text" 
                     value={item.Dosage || item.dosage || ''}
@@ -315,7 +463,7 @@ export default function Medications() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Frequency</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">วิธีใช้</label>
                   <input 
                     type="text" 
                     value={item.Frequency || item.frequency || ''}
@@ -324,11 +472,38 @@ export default function Medications() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Purpose</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">สรรพคุณ</label>
                   <input 
                     type="text" 
                     value={item.Purpose || item.purpose || ''}
                     onChange={(e) => handleExtractedChange(i, 'Purpose', e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">วันที่เริ่มใช้</label>
+                  <input 
+                    type="date" 
+                    value={item.StartDate || ''}
+                    onChange={(e) => handleExtractedChange(i, 'StartDate', e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">วันหยุดยา</label>
+                  <input 
+                    type="date" 
+                    value={item.EndDate || ''}
+                    onChange={(e) => handleExtractedChange(i, 'EndDate', e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">หมายเหตุ</label>
+                  <input 
+                    type="text" 
+                    value={item.Notes || item.notes || ''}
+                    onChange={(e) => handleExtractedChange(i, 'Notes', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                   />
                 </div>
@@ -342,50 +517,124 @@ export default function Medications() {
                 className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Confirm & Save to Database'}
+                {saving ? 'กำลังบันทึก...' : 'ยืนยันและบันทึกข้อมูล'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* History Table */}
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Filter className="w-4 h-4 text-slate-400" />
+          <span className="text-sm font-medium text-slate-700">ตัวกรอง:</span>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Calendar className="w-4 h-4 text-slate-400" />
+          <input 
+            type="date" 
+            value={filterStartDate} 
+            onChange={e => setFilterStartDate(e.target.value)}
+            className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full sm:w-auto"
+          />
+          <span className="text-slate-400">-</span>
+          <input 
+            type="date" 
+            value={filterEndDate} 
+            onChange={e => setFilterEndDate(e.target.value)}
+            className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full sm:w-auto"
+          />
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="ค้นหาชื่อยา, สรรพคุณ, หมายเหตุ..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full"
+            />
+          </div>
+          {(filterStartDate || filterEndDate || searchQuery) && (
+            <button 
+              onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); }}
+              className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors whitespace-nowrap"
+            >
+              ล้างตัวกรอง
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Active Medications Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <Pill className="w-5 h-5 text-slate-500" />
-          <h2 className="text-lg font-semibold text-slate-900">Current Medications</h2>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Pill className="w-5 h-5 text-emerald-500" />
+            <h2 className="text-lg font-semibold text-slate-900">ยาที่ใช้อยู่ปัจจุบัน (Active)</h2>
+          </div>
+          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
+            {activeMeds.length} รายการ
+          </span>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4">Medication Name</th>
-                <th className="px-6 py-4">Dosage</th>
-                <th className="px-6 py-4">Frequency</th>
-                <th className="px-6 py-4">Purpose</th>
+                <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
+                <th className="px-6 py-4">วิธีใช้</th>
+                <th className="px-6 py-4">ระยะเวลาที่ใช้</th>
+                <th className="px-6 py-4">หมายเหตุ</th>
+                <th className="px-6 py-4 text-right">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-400">Loading records...</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
                 </tr>
-              ) : meds.length === 0 ? (
+              ) : activeMeds.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-400">No medications found.</td>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-400">ไม่พบรายการยาที่ใช้อยู่</td>
                 </tr>
               ) : (
-                meds.map((m: any, i) => (
+                activeMeds.map((m: any, i) => (
                   <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900">{m.MedicationName}</td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                      <div className="font-medium text-slate-900">{m.MedicationName}</div>
+                      <div className="text-xs text-slate-500 mt-1">{m.Purpose}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 mb-1">
                         {m.Dosage}
                       </span>
+                      <div className="text-slate-700">{m.Frequency}</div>
                     </td>
-                    <td className="px-6 py-4 text-slate-700">{m.Frequency}</td>
-                    <td className="px-6 py-4 text-slate-500">{m.Purpose}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>เริ่ม: {m.StartDate || '-'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-emerald-600 mt-1 font-medium text-xs">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>ใช้มาแล้ว: {getDuration(m.StartDate, '')}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={m.Notes}>
+                      {m.Notes || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => openEditModal(m)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="แก้ไขข้อมูล (เช่น ใส่วันหยุดยา)"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -393,6 +642,68 @@ export default function Medications() {
           </table>
         </div>
       </div>
+
+      {/* Past Medications Table */}
+      {pastMeds.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-slate-400" />
+              <h2 className="text-lg font-semibold text-slate-700">ประวัติการใช้ยาในอดีต (Past)</h2>
+            </div>
+            <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
+              {pastMeds.length} รายการ
+            </span>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4">ชื่อยา / สรรพคุณ</th>
+                  <th className="px-6 py-4">วิธีใช้</th>
+                  <th className="px-6 py-4">ช่วงเวลาที่ใช้</th>
+                  <th className="px-6 py-4">หมายเหตุ</th>
+                  <th className="px-6 py-4 text-right">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pastMeds.map((m: any, i) => (
+                  <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-700">{m.MedicationName}</div>
+                      <div className="text-xs text-slate-400 mt-1">{m.Purpose}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-slate-600">{m.Dosage}</div>
+                      <div className="text-slate-500 text-xs mt-1">{m.Frequency}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-slate-600 text-xs">
+                        {m.StartDate || '?'} ถึง {m.EndDate}
+                      </div>
+                      <div className="text-slate-500 mt-1 font-medium text-xs">
+                        รวม: {getDuration(m.StartDate, m.EndDate)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={m.Notes}>
+                      {m.Notes || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => openEditModal(m)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

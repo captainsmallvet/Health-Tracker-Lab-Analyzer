@@ -254,10 +254,10 @@ app.get('/api/data/:tab', authenticate, async (req, res) => {
     if (rows.length === 0) return res.json([]);
     
     const headers = rows[0];
-    const data = rows.slice(1).map(row => {
-      const obj: any = {};
-      headers.forEach((header, index) => {
-        obj[header] = row[index] || '';
+    const data = rows.slice(1).map((row, index) => {
+      const obj: any = { _rowIndex: index + 2 }; // +2 because row 1 is header and index is 0-based
+      headers.forEach((header, colIndex) => {
+        obj[header] = row[colIndex] || '';
       });
       return obj;
     });
@@ -315,6 +315,44 @@ app.post('/api/data/:tab', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Sheets API error:', error);
     res.status(500).json({ error: 'Failed to append data' });
+  }
+});
+
+app.put('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
+  const { tab, rowIndex } = req.params;
+  const data = req.body;
+  
+  const sheets = getSheetsClient();
+  if (!sheets || !GOOGLE_SHEET_ID) {
+    return res.json({ success: true, message: 'Mock save (Sheets API not configured)' });
+  }
+
+  try {
+    // First, get headers
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${tab}!1:1`,
+    });
+    
+    let headers = headerResponse.data.values?.[0];
+    if (!headers) {
+      return res.status(400).json({ error: 'No headers found in sheet' });
+    }
+
+    // Map data to row based on headers
+    const row = headers.map(header => data[header] !== undefined ? data[header] : '');
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: `${tab}!A${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [row] }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Sheets API error:', error);
+    res.status(500).json({ error: 'Failed to update data' });
   }
 });
 
@@ -417,6 +455,9 @@ app.post('/api/analyze-medication', authenticate, upload.single('image'), async 
       - Dosage: The strength or dosage per unit (e.g., "500 mg", "10 mg").
       - Frequency: Instructions on how often to take it (e.g., "1 tablet after breakfast and dinner", "1 tab daily").
       - Purpose: The indication or what it is used for (if available on the label, e.g., "For pain relief", "Blood pressure").
+      - StartDate: The date the medication was prescribed or started (if available, format YYYY-MM-DD). If not available, leave empty.
+      - EndDate: The date the medication should be stopped (if available, format YYYY-MM-DD). If not available, leave empty.
+      - Notes: Any additional notes, warnings, or side effects mentioned on the label.
       
       Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.
     `;

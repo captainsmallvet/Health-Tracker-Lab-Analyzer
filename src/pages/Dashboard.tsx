@@ -111,11 +111,11 @@ export default function Dashboard() {
     }
   });
 
-  const egfrData = labTrendData.filter((d: any) => d.egfr !== undefined);
-  const sugarData = labTrendData.filter((d: any) => d.fbs !== undefined || d.hba1c !== undefined);
-  const liverData = labTrendData.filter((d: any) => d.ast !== undefined || d.alt !== undefined);
-  const lipidData = labTrendData.filter((d: any) => d.ldl !== undefined || d.hdl !== undefined || d.tg !== undefined || d.tc !== undefined);
-  const thyroidData = labTrendData.filter((d: any) => d.tsh !== undefined || d.ft3 !== undefined || d.ft4 !== undefined || d.t3 !== undefined || d.t4 !== undefined);
+  const egfrData: any[] = labTrendData.filter((d: any) => d.egfr !== undefined);
+  const sugarData: any[] = labTrendData.filter((d: any) => d.fbs !== undefined || d.hba1c !== undefined);
+  const liverData: any[] = labTrendData.filter((d: any) => d.ast !== undefined || d.alt !== undefined);
+  const lipidData: any[] = labTrendData.filter((d: any) => d.ldl !== undefined || d.hdl !== undefined || d.tg !== undefined || d.tc !== undefined);
+  const thyroidData: any[] = labTrendData.filter((d: any) => d.tsh !== undefined || d.ft3 !== undefined || d.ft4 !== undefined || d.t3 !== undefined || d.t4 !== undefined);
 
   const ChartCard = ({ title, data, lines, interpretation, dualAxis }: { title: string, data: any[], lines: any[], interpretation: string, dualAxis?: boolean }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
