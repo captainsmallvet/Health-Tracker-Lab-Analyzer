@@ -745,6 +745,164 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
       });
     }
 
+    const ft3 = getLatestLab(['Free T3', 'FT3']);
+    if (ft3 && ft3.Value) {
+      const val = parseFloat(ft3.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val < 2.0) {
+        status = 'ต่ำ (Low)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า Free T3 ต่ำ อาจสัมพันธ์กับภาวะไทรอยด์ทำงานต่ำ ควรปรึกษาแพทย์';
+      } else if (val >= 2.0 && val <= 4.4) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่า Free T3 อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า Free T3 สูง อาจสัมพันธ์กับภาวะไทรอยด์เป็นพิษ ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'ฮอร์โมนไทรอยด์ (Free T3)',
+        date: ft3.Date,
+        value: val,
+        unit: ft3.Unit || 'pg/mL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const ft4 = getLatestLab(['Free T4', 'FT4']);
+    if (ft4 && ft4.Value) {
+      const val = parseFloat(ft4.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val < 0.9) {
+        status = 'ต่ำ (Low)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า Free T4 ต่ำ อาจสัมพันธ์กับภาวะไทรอยด์ทำงานต่ำ ควรปรึกษาแพทย์';
+      } else if (val >= 0.9 && val <= 1.7) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'ค่า Free T4 อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า Free T4 สูง อาจสัมพันธ์กับภาวะไทรอยด์เป็นพิษ ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'ฮอร์โมนไทรอยด์ (Free T4)',
+        date: ft4.Date,
+        value: val,
+        unit: ft4.Unit || 'ng/dL',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    // 7. Liver Function
+    const ast = getLatestLab(['AST', 'SGOT']);
+    if (ast && ast.Value) {
+      const val = parseFloat(ast.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 40) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'การทำงานของตับ (AST) อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า AST สูง บ่งชี้ว่าอาจมีเซลล์ตับอักเสบหรือเสียหาย ควรหลีกเลี่ยงแอลกอฮอล์และปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'การทำงานของตับ (AST)',
+        date: ast.Date,
+        value: val,
+        unit: ast.Unit || 'U/L',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const alt = getLatestLab(['ALT', 'SGPT']);
+    if (alt && alt.Value) {
+      const val = parseFloat(alt.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val <= 40) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'การทำงานของตับ (ALT) อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า ALT สูง บ่งชี้ว่าอาจมีภาวะตับอักเสบหรือไขมันพอกตับ ควรควบคุมน้ำหนักและปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'การทำงานของตับ (ALT)',
+        date: alt.Date,
+        value: val,
+        unit: alt.Unit || 'U/L',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
+    const alp = getLatestLab(['ALP', 'Alkaline Phosphatase']);
+    if (alp && alp.Value) {
+      const val = parseFloat(alp.Value);
+      let status = '';
+      let color = '';
+      let advice = '';
+
+      if (val < 40) {
+        status = 'ต่ำ (Low)';
+        color = 'text-amber-600 bg-amber-50 border-amber-200';
+        advice = 'ค่า ALP ต่ำ อาจพบได้ในภาวะขาดสารอาหารบางชนิด';
+      } else if (val >= 40 && val <= 120) {
+        status = 'ปกติ (Normal)';
+        color = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        advice = 'การทำงานของตับและระบบน้ำดี (ALP) อยู่ในเกณฑ์ปกติ';
+      } else {
+        status = 'สูง (High)';
+        color = 'text-rose-600 bg-rose-50 border-rose-200';
+        advice = 'ค่า ALP สูง อาจสัมพันธ์กับความผิดปกติของระบบน้ำดี ตับ หรือกระดูก ควรปรึกษาแพทย์';
+      }
+
+      results.push({
+        category: 'การทำงานของตับ (ALP)',
+        date: alp.Date,
+        value: val,
+        unit: alp.Unit || 'U/L',
+        status,
+        color,
+        icon: Activity,
+        advice
+      });
+    }
+
     const criteriaMap: Record<string, string[]> = {
       'ดัชนีมวลกาย (BMI)': [
         '< 18.5 : น้ำหนักน้อย (Underweight)',
@@ -845,6 +1003,29 @@ export default function HealthAnalysis({ vitals, labs, profile }: HealthAnalysis
         '0.4 - 4.0 : ปกติ (Normal)',
         '4.1 - 10.0 : ค่อนข้างสูง (Subclinical Hypothyroidism)',
         '> 10.0 : สูง (Hypothyroidism)'
+      ],
+      'ฮอร์โมนไทรอยด์ (Free T3)': [
+        '< 2.0 : ต่ำ (Low)',
+        '2.0 - 4.4 : ปกติ (Normal)',
+        '> 4.4 : สูง (High)'
+      ],
+      'ฮอร์โมนไทรอยด์ (Free T4)': [
+        '< 0.9 : ต่ำ (Low)',
+        '0.9 - 1.7 : ปกติ (Normal)',
+        '> 1.7 : สูง (High)'
+      ],
+      'การทำงานของตับ (AST)': [
+        '<= 40 : ปกติ (Normal)',
+        '> 40 : สูง (High)'
+      ],
+      'การทำงานของตับ (ALT)': [
+        '<= 40 : ปกติ (Normal)',
+        '> 40 : สูง (High)'
+      ],
+      'การทำงานของตับ (ALP)': [
+        '< 40 : ต่ำ (Low)',
+        '40 - 120 : ปกติ (Normal)',
+        '> 120 : สูง (High)'
       ]
     };
 
