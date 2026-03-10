@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock } from 'lucide-react';
+import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Medications() {
@@ -136,6 +136,29 @@ export default function Medications() {
       // Create new
       const formattedData = [manualMed];
       await saveToServer(formattedData);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingMed || !window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการยานี้?')) return;
+    
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/data/Medications/${editingMed._rowIndex}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setEditingMed(null);
+        setShowManualForm(false);
+        setManualMed(defaultMed);
+        fetchMeds();
+      } else {
+        throw new Error('Failed to delete');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -404,22 +427,37 @@ export default function Medications() {
                 />
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button 
-                type="button"
-                onClick={() => { setShowManualForm(false); setEditingMed(null); }}
-                className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
-              >
-                ยกเลิก
-              </button>
-              <button 
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-              </button>
+            <div className="mt-6 flex justify-between gap-3">
+              {editingMed ? (
+                <button 
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2.5 text-red-600 bg-red-50 font-medium rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  ลบรายการ
+                </button>
+              ) : (
+                <div></div>
+              )}
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => { setShowManualForm(false); setEditingMed(null); }}
+                  className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                </button>
+              </div>
             </div>
           </form>
           </div>

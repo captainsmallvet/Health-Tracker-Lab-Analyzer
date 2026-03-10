@@ -356,6 +356,53 @@ app.put('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
   }
 });
 
+app.delete('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
+  const { tab, rowIndex } = req.params;
+  
+  const sheets = getSheetsClient();
+  if (!sheets || !GOOGLE_SHEET_ID) {
+    return res.json({ success: true, message: 'Mock save (Sheets API not configured)' });
+  }
+
+  try {
+    // Get sheetId for the tab
+    const sheetInfo = await sheets.spreadsheets.get({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      ranges: [tab],
+    });
+    
+    const sheetId = sheetInfo.data.sheets?.[0]?.properties?.sheetId;
+    if (sheetId === undefined) {
+      return res.status(400).json({ error: 'Sheet not found' });
+    }
+
+    const rowIdx = parseInt(rowIndex, 10);
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: 'ROWS',
+                startIndex: rowIdx - 1,
+                endIndex: rowIdx,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Sheets API error:', error);
+    res.status(500).json({ error: 'Failed to delete data' });
+  }
+});
+
 // 3. AI Image Processing
 app.post('/api/analyze-lab', authenticate, upload.single('image'), async (req, res) => {
   if (!req.file) {
