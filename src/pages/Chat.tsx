@@ -25,7 +25,6 @@ export default function Chat() {
   const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
-  const topRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter states
@@ -45,7 +44,12 @@ export default function Chat() {
   };
 
   const scrollToTop = () => {
-    topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Also scroll the main content area if it's the one with the scrollbar
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const scrollToFilters = () => {
@@ -161,7 +165,6 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[500px] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-      <div ref={topRef} />
       {/* Header */}
       <div className="p-4 border-b border-slate-200 bg-indigo-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
