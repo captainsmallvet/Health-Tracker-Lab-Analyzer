@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart } from 'lucide-react';
+import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Layout() {
@@ -24,6 +24,17 @@ export default function Layout() {
     { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
     { path: '/profile', label: 'Profile', icon: User },
   ];
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToMainContent = () => {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      mainContent.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -94,6 +105,26 @@ export default function Layout() {
           </div>
         </main>
       </div>
+
+      {/* Floating Shortcut Buttons */}
+      {location.pathname !== '/chat' && (
+        <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 flex flex-col gap-3 z-50">
+          <button
+            onClick={scrollToTop}
+            className="p-3 bg-white text-slate-700 rounded-full shadow-lg hover:bg-slate-50 border border-slate-200 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            title="Scroll to very top (Header)"
+          >
+            <ArrowUpToLine className="w-5 h-5" />
+          </button>
+          <button
+            onClick={scrollToMainContent}
+            className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            title="Scroll to content top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
