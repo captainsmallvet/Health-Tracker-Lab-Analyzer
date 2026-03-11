@@ -26,7 +26,12 @@ export default function Layout() {
   ];
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const topHeader = document.getElementById('top-header');
+    if (topHeader) {
+      topHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const scrollToMainContent = () => {
@@ -48,7 +53,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200">
+      <header id="top-header" className="bg-white border-b border-slate-200">
         <div className="px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-lg md:text-xl font-bold text-slate-800">Health Tracker & Lab Analyzer</h1>
