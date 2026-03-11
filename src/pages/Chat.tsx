@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X } from 'lucide-react';
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
 
@@ -72,8 +72,11 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchHistory();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, startDate, endDate]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,17 +207,32 @@ export default function Chat() {
                 placeholder="ค้นหาประวัติการแชต..." 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchHistory()}
-                className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 w-full"
+                className="pl-9 pr-9 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 w-full"
               />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            <button 
-              onClick={fetchHistory}
-              disabled={isFetchingHistory}
-              className="px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors whitespace-nowrap disabled:opacity-50"
-            >
-              ค้นหา
-            </button>
+            {(startDate || endDate || searchQuery) && (
+              <button 
+                onClick={() => {
+                  setSearchQuery('');
+                  const d = new Date();
+                  d.setDate(d.getDate() - 2);
+                  setStartDate(d.toISOString().split('T')[0]);
+                  setEndDate(new Date().toISOString().split('T')[0]);
+                }}
+                className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                title="ล้างตัวกรองทั้งหมด"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
