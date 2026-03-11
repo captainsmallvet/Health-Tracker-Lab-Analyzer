@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X } from 'lucide-react';
+import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X, ChevronDown, ChevronUp, ArrowDown, ArrowUp } from 'lucide-react';
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
@@ -24,6 +24,8 @@ export default function Chat() {
   const [error, setError] = useState('');
   const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter states
   const [startDate, setStartDate] = useState(() => {
@@ -39,6 +41,18 @@ export default function Chat() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollToFilters = () => {
+    if (!showFilters) {
+      setShowFilters(true);
+      // Wait for state update to render filters
+      setTimeout(() => {
+        filterRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      filterRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const renderWithHighlight = (children: any, query: string) => {
@@ -141,7 +155,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[500px] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-8rem)] min-h-[500px] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
       {/* Header */}
       <div className="p-4 border-b border-slate-200 bg-indigo-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -200,7 +214,7 @@ export default function Chat() {
 
       {/* Filters Area */}
       {showFilters && (
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-3 items-end sm:items-center text-sm">
+        <div ref={filterRef} className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-3 items-end sm:items-center text-sm">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Calendar className="w-4 h-4 text-slate-400" />
             <input 
@@ -346,6 +360,24 @@ export default function Chat() {
         )}
         
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Floating Shortcuts */}
+      <div className="absolute right-6 bottom-32 flex flex-col gap-2 z-20">
+        <button
+          onClick={scrollToFilters}
+          title="ไปที่ตัวกรองประวัติ"
+          className="w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95"
+        >
+          <ChevronUp className="w-5 h-5" />
+        </button>
+        <button
+          onClick={scrollToBottom}
+          title="ไปที่ข้อความล่าสุด"
+          className="w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95"
+        >
+          <ChevronDown className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Input Area */}
