@@ -445,241 +445,7 @@ app.delete('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
 });
 
 // 3. AI Image Processing
-app.post('/api/analyze-lab', authenticate, upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
-
-  if (!GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key not configured' });
-  }
-
-  try {
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    
-    const prompt = `
-      Analyze this lab result image. Extract the data into a JSON array of objects.
-      IMPORTANT: This image is a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen (such as time, battery percentage, wifi/cellular signal, navigation bars, app headers, etc.). Focus STRICTLY on extracting the medical laboratory test results from the main content area.
-      Each object should represent one test result and have the following keys:
-      - testName: The name of the test. Normalize common abbreviations (e.g., "FBS" to "Fasting Blood Sugar", "Chol" to "Cholesterol", "TG" to "Triglycerides", "HDL-C" to "HDL Cholesterol", "LDL-C" to "LDL Cholesterol").
-      - value: The numerical value or result.
-      - unit: The unit of measurement (if available).
-      - referenceRange: The normal or reference range (if available).
-      
-      Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.
-    `;
-
-    const modelToUse = req.body.model || 'gemini-3-flash-preview';
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: req.file.buffer.toString('base64'),
-              mimeType: req.file.mimetype,
-            }
-          },
-          {
-            text: prompt
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-      }
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error('No text returned from Gemini');
-    }
-
-    const parsedData = JSON.parse(text);
-    
-    // Log usage (simplified, in a real app we'd track tokens)
-    const sheets = getSheetsClient();
-    if (sheets && GOOGLE_SHEET_ID) {
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: GOOGLE_SHEET_ID,
-          range: 'UsageLogs!A:A',
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { 
-            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-lab', 1]] 
-          }
-        });
-      } catch (e) {
-        console.error('Failed to log usage', e);
-      }
-    }
-
-    res.json(parsedData);
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    res.status(500).json({ error: 'Failed to analyze image' });
-  }
-});
-
-// 4. AI Image Processing for Medications
-app.post('/api/analyze-medication', authenticate, upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
-
-  if (!GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key not configured' });
-  }
-
-  try {
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    
-    const prompt = `
-      Analyze this medication label or prescription image. Extract the data into a JSON array of objects.
-      IMPORTANT: This image might be a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen. Focus STRICTLY on extracting the medication details from the main content area.
-      If there are multiple medications, return an object for each one.
-      Each object should have the following keys:
-      - MedicationName: The name of the medication (e.g., "Paracetamol", "Amlodipine").
-      - Dosage: The strength or dosage per unit (e.g., "500 mg", "10 mg").
-      - Frequency: Instructions on how often to take it (e.g., "1 tablet after breakfast and dinner", "1 tab daily").
-      - Purpose: The indication or what it is used for (if available on the label, e.g., "For pain relief", "Blood pressure").
-      - StartDate: The date the medication was prescribed or started (if available, format YYYY-MM-DD). If not available, leave empty.
-      - EndDate: The date the medication should be stopped (if available, format YYYY-MM-DD). If not available, leave empty.
-      - Notes: Any additional notes, warnings, or side effects mentioned on the label.
-      
-      Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.
-    `;
-
-    const modelToUse = req.body.model || 'gemini-3-flash-preview';
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: req.file.buffer.toString('base64'),
-              mimeType: req.file.mimetype,
-            }
-          },
-          {
-            text: prompt
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-      }
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error('No text returned from Gemini');
-    }
-
-    const parsedData = JSON.parse(text);
-    
-    // Log usage
-    const sheets = getSheetsClient();
-    if (sheets && GOOGLE_SHEET_ID) {
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: GOOGLE_SHEET_ID,
-          range: 'UsageLogs!A:A',
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { 
-            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-medication', 1]] 
-          }
-        });
-      } catch (e) {
-        console.error('Failed to log usage', e);
-      }
-    }
-
-    // Ensure it's an array
-    const dataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
-    res.json(dataArray);
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    res.status(500).json({ error: 'Failed to analyze medication image' });
-  }
-});
-
-// 4.5 AI Image Processing for Health Events
-app.post('/api/analyze-event', authenticate, upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
-
-  if (!GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key not configured' });
-  }
-
-  try {
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    
-    const prompt = `
-      Analyze this medical document, doctor's note, or imaging result (e.g., MRI, X-Ray, Ultrasound). Extract the data into a JSON object.
-      IMPORTANT: This image might be a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen. Focus STRICTLY on extracting the medical event details from the main content area.
-      The object should have the following keys:
-      - Date: The date of the test or event (format YYYY-MM-DD). If not found, leave empty.
-      - Type: Categorize the event into one of these exact strings: "Illness", "Symptom", "Diagnosis", "Surgery/Procedure", "Other". (For imaging like MRI/X-Ray, use "Diagnosis" or "Other").
-      - Description: A short, concise title for the event (e.g., "MRI Brain Results", "Chest X-Ray", "Doctor's Appointment").
-      - Notes: A detailed summary or translation of the findings, impressions, or doctor's notes. Translate complex medical terms into easy-to-understand Thai if possible.
-      
-      Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
-    `;
-
-    const modelToUse = req.body.model || 'gemini-3-flash-preview';
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: req.file.buffer.toString('base64'),
-              mimeType: req.file.mimetype,
-            }
-          },
-          {
-            text: prompt
-          }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-      }
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error('No text returned from Gemini');
-    }
-
-    const parsedData = JSON.parse(text);
-    
-    // Log usage
-    const sheets = getSheetsClient();
-    if (sheets && GOOGLE_SHEET_ID) {
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: GOOGLE_SHEET_ID,
-          range: 'UsageLogs!A:A',
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { 
-            values: [[getThaiTimestamp(), (req as any).user.email, 'analyze-event', 1]] 
-          }
-        });
-      } catch (e) {
-        console.error('Failed to log usage', e);
-      }
-    }
-
-    res.json(parsedData);
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    res.status(500).json({ error: 'Failed to analyze event image' });
-  }
-});
+// These endpoints have been moved to the frontend to avoid issues in the Preview environment.
 
 // 5. AI Chat Assistant
 app.get('/api/chat/history', authenticate, async (req, res) => {
@@ -693,22 +459,46 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
     });
     
     const rows = response.data.values || [];
-    const { startDate, endDate, search } = req.query;
+    const { startDate, endDate, search, initial } = req.query;
+    
+    let effectiveStartDate = startDate as string;
+    let effectiveEndDate = endDate as string;
+
+    if (initial === 'true' && rows.length > 0) {
+      // Find the last valid message date
+      let lastDate = new Date();
+      for (let i = rows.length - 1; i >= 0; i--) {
+        if (rows[i][0]) {
+          const d = new Date(rows[i][0]);
+          if (!isNaN(d.getTime())) {
+            lastDate = d;
+            break;
+          }
+        }
+      }
+      
+      const start = new Date(lastDate);
+      start.setDate(start.getDate() - 2);
+      effectiveStartDate = start.toISOString().split('T')[0];
+      
+      // End date is always today
+      effectiveEndDate = new Date().toISOString().split('T')[0];
+    }
     
     const filteredRows = rows.filter(row => {
       if (!row[0] || !row[1] || !row[2]) return false;
       
       let matchesDate = true;
-      if (startDate || endDate) {
+      if (effectiveStartDate || effectiveEndDate) {
         const rowDate = new Date(row[0]);
         if (!isNaN(rowDate.getTime())) {
-          if (startDate) {
-            const start = new Date(startDate as string);
+          if (effectiveStartDate) {
+            const start = new Date(effectiveStartDate);
             start.setHours(0, 0, 0, 0);
             if (rowDate < start) matchesDate = false;
           }
-          if (endDate) {
-            const end = new Date(endDate as string);
+          if (effectiveEndDate) {
+            const end = new Date(effectiveEndDate);
             end.setHours(23, 59, 59, 999);
             if (rowDate > end) matchesDate = false;
           }
@@ -733,137 +523,110 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
         text: row[2]  // Text is now in column C
       }));
       
-    res.json({ messages: userHistory });
+    res.json({ 
+      messages: userHistory,
+      defaultStartDate: effectiveStartDate,
+      defaultEndDate: effectiveEndDate
+    });
   } catch (error) {
     console.error('Failed to fetch chat history', error);
     res.status(500).json({ error: 'Failed to fetch chat history' });
   }
 });
 
-app.post('/api/chat', authenticate, async (req, res) => {
-  const { messages, model } = req.body;
-
-  if (!GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Gemini API Key not configured' });
-  }
-
+app.get('/api/chat/context', authenticate, async (req, res) => {
   try {
     const sheets = getSheetsClient();
     let healthContext = "No health data available.";
     
     if (sheets && GOOGLE_SHEET_ID) {
-      try {
-        const [vitalsRes, labsRes, medsRes, eventsRes, profileRes] = await Promise.all([
-          sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Vitals!A:Z' }).catch(() => null),
-          sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'LabResults!A:Z' }).catch(() => null),
-          sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Medications!A:Z' }).catch(() => null),
-          sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'HealthEvents!A:Z' }).catch(() => null),
-          sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Profile!A:Z' }).catch(() => null)
-        ]);
+      const [vitalsRes, labsRes, medsRes, eventsRes, profileRes] = await Promise.all([
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Vitals!A:Z' }).catch(() => null),
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'LabResults!A:Z' }).catch(() => null),
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Medications!A:Z' }).catch(() => null),
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'HealthEvents!A:Z' }).catch(() => null),
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Profile!A:Z' }).catch(() => null)
+      ]);
 
-        const formatData = (response: any) => {
-          const rows = response?.data?.values || [];
-          if (rows.length <= 1) return "None";
-          const headers = rows[0];
-          const data = rows.slice(1).map((row: any) => {
-            const obj: any = {};
-            headers.forEach((h: string, i: number) => obj[h] = row[i] || '');
-            return obj;
-          });
-          return JSON.stringify(data);
-        };
-
-        const getLatestProfile = (response: any) => {
-          const rows = response?.data?.values || [];
-          if (rows.length <= 1) return "None";
-          const headers = rows[0];
-          const latestRow = rows[rows.length - 1];
+      const formatData = (response: any) => {
+        const rows = response?.data?.values || [];
+        if (rows.length <= 1) return "None";
+        const headers = rows[0];
+        const data = rows.slice(1).map((row: any) => {
           const obj: any = {};
-          headers.forEach((h: string, i: number) => obj[h] = latestRow[i] || '');
-          return JSON.stringify(obj);
-        };
+          headers.forEach((h: string, i: number) => obj[h] = row[i] || '');
+          return obj;
+        });
+        return JSON.stringify(data);
+      };
 
-        healthContext = `
-          Patient's Personal Profile: ${getLatestProfile(profileRes)}
-          
-          Patient's Current Health Data:
-          - Vitals: ${formatData(vitalsRes)}
-          - Lab Results: ${formatData(labsRes)}
-          - Medications: ${formatData(medsRes)}
-          - Medical History & Events: ${formatData(eventsRes)}
-        `;
-      } catch (e) {
-        console.error("Error fetching context data", e);
-      }
-    }
+      const getLatestProfile = (response: any) => {
+        const rows = response?.data?.values || [];
+        if (rows.length <= 1) return "None";
+        const headers = rows[0];
+        const latestRow = rows[rows.length - 1];
+        const obj: any = {};
+        headers.forEach((h: string, i: number) => obj[h] = latestRow[i] || '');
+        return JSON.stringify(obj);
+      };
 
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    
-    const systemInstruction = `
-      คุณคือแพทย์ผู้เชี่ยวชาญ (Expert Medical Doctor) และเภสัชกรคลินิก (Clinical Pharmacist)
-      หน้าที่ของคุณคือให้คำปรึกษา แนะนำ และวิเคราะห์ข้อมูลสุขภาพของผู้ป่วย
-      
-      ข้อมูลสุขภาพปัจจุบันของผู้ป่วย (ดึงมาจากระบบติดตามสุขภาพ):
-      ${healthContext}
-
-      คำแนะนำในการตอบ:
-      1. วิเคราะห์ผลตรวจเลือด (Lab Results) ล่าสุด อธิบายความหมายของค่าต่างๆ ว่าปกติหรือไม่ และมีแนวโน้มอย่างไร
-      2. ประเมินสุขภาพโดยรวมจากค่าความดันโลหิต น้ำตาลในเลือด (Vitals)
-      3. ให้คำแนะนำเรื่องการใช้ยา ผลข้างเคียง ข้อควรระวัง หรือปฏิกิริยาระหว่างยา (Drug Interactions) จากรายการยาที่ผู้ป่วยใช้อยู่
-      4. ตอบคำถามด้วยความเห็นอกเห็นใจ เป็นมืออาชีพ และใช้ภาษาที่เข้าใจง่าย (ภาษาไทย)
-      5. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
-    `;
-
-    const modelToUse = model || 'gemini-3.1-pro-preview';
-    const response = await ai.models.generateContent({
-      model: modelToUse,
-      contents: messages,
-      config: {
-        systemInstruction: systemInstruction,
-      }
-    });
-
-    const timestamp = getThaiTimestamp();
-
-    // Log usage and save chat history
-    if (sheets && GOOGLE_SHEET_ID) {
-      try {
-        const userEmail = (req as any).user.email;
+      healthContext = `
+        Patient's Personal Profile: ${getLatestProfile(profileRes)}
         
-        // Log usage
+        Patient's Current Health Data:
+        - Vitals: ${formatData(vitalsRes)}
+        - Lab Results: ${formatData(labsRes)}
+        - Medications: ${formatData(medsRes)}
+        - Medical History & Events: ${formatData(eventsRes)}
+      `;
+    }
+    res.json({ healthContext });
+  } catch (error) {
+    console.error("Error fetching context data", error);
+    res.status(500).json({ error: 'Failed to fetch health context' });
+  }
+});
+
+app.post('/api/chat/log', authenticate, async (req, res) => {
+  const { userMessage, modelMessage } = req.body;
+  const timestamp = getThaiTimestamp();
+  
+  const sheets = getSheetsClient();
+  if (sheets && GOOGLE_SHEET_ID) {
+    try {
+      const userEmail = (req as any).user.email;
+      
+      // Log usage
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: 'UsageLogs!A:A',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { 
+          values: [[timestamp, userEmail, 'chat-assistant', 1]] 
+        }
+      });
+
+      // Save chat history
+      if (userMessage) {
         await sheets.spreadsheets.values.append({
           spreadsheetId: GOOGLE_SHEET_ID,
-          range: 'UsageLogs!A:A',
+          range: 'ChatHistory!A:C',
           valueInputOption: 'USER_ENTERED',
           requestBody: { 
-            values: [[timestamp, userEmail, 'chat-assistant', 1]] 
+            values: [
+              [timestamp, 'user', userMessage],
+              [timestamp, 'model', modelMessage]
+            ] 
           }
         });
-
-        // Save chat history
-        const userMsg = messages[messages.length - 1]?.parts[0]?.text || '';
-        if (userMsg) {
-          await sheets.spreadsheets.values.append({
-            spreadsheetId: GOOGLE_SHEET_ID,
-            range: 'ChatHistory!A:C',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { 
-              values: [
-                [timestamp, 'user', userMsg],
-                [timestamp, 'model', response.text]
-              ] 
-            }
-          });
-        }
-      } catch (e) {
-        console.error('Failed to log usage or save chat history', e);
       }
+      res.json({ success: true, timestamp });
+    } catch (e) {
+      console.error('Failed to log usage or save chat history', e);
+      res.status(500).json({ error: 'Failed to log chat' });
     }
-
-    res.json({ text: response.text, timestamp });
-  } catch (error) {
-    console.error('Chat API error:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+  } else {
+    res.json({ success: true, timestamp });
   }
 });
 

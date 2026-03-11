@@ -64,22 +64,29 @@ export default function Medications() {
     setShowManualForm(false);
     setEditingMed(null);
 
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('model', selectedModel);
-
     try {
-      const res = await fetch('/api/analyze-medication', {
-        method: 'POST',
-        body: formData
-      });
+      const { analyzeImage } = await import('../utils/gemini');
+      const prompt = `
+        Analyze this medication label or prescription image. Extract the data into a JSON array of objects.
+        IMPORTANT: This image might be a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen. Focus STRICTLY on extracting the medication details from the main content area.
+        If there are multiple medications, return an object for each one.
+        Each object should have the following keys:
+        - MedicationName: The name of the medication (e.g., "Paracetamol", "Amlodipine").
+        - Dosage: The strength or dosage per unit (e.g., "500 mg", "10 mg").
+        - Frequency: Instructions on how often to take it (e.g., "1 tablet after breakfast and dinner", "1 tab daily").
+        - Purpose: The indication or what it is used for (if available on the label, e.g., "For pain relief", "Blood pressure").
+        - StartDate: The date the medication was prescribed or started (if available, format YYYY-MM-DD). If not available, leave empty.
+        - EndDate: The date the medication should be stopped (if available, format YYYY-MM-DD). If not available, leave empty.
+        - Notes: Any additional notes, warnings, or side effects mentioned on the label.
+        
+        Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.
+      `;
       
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to analyze image');
+      let data = await analyzeImage(file, prompt, selectedModel);
+      if (!Array.isArray(data)) {
+        data = [data];
       }
       
-      const data = await res.json();
       // Ensure StartDate is populated
       const enrichedData = data.map((item: any) => ({
         ...item,
@@ -88,8 +95,16 @@ export default function Medications() {
         Notes: item.Notes || item.notes || ''
       }));
       setExtractedData(enrichedData);
+      
+      // Log usage to backend
+      fetch('/api/chat/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: 'analyze-medication', modelMessage: 'success' })
+      }).catch(console.error);
+      
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to analyze image');
     } finally {
       setUploading(false);
     }

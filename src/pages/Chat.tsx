@@ -4,6 +4,8 @@ import Markdown from 'react-markdown';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 
+import { GoogleGenAI } from '@google/genai';
+
 interface Message {
   role: 'user' | 'model';
   text: string;
@@ -28,16 +30,11 @@ export default function Chat() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Filter states
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 2);
-    return d.toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [hasInitializedDates, setHasInitializedDates] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,13 +83,26 @@ export default function Chat() {
     setIsFetchingHistory(true);
     try {
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      
+      if (!hasInitializedDates) {
+        params.append('initial', 'true');
+      } else {
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+      }
+      
       if (searchQuery) params.append('search', searchQuery);
 
       const res = await fetch(`/api/chat/history?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
+        
+        if (!hasInitializedDates) {
+          if (data.defaultStartDate) setStartDate(data.defaultStartDate);
+          if (data.defaultEndDate) setEndDate(data.defaultEndDate);
+          setHasInitializedDates(true);
+        }
+
         const greeting: Message = { 
           role: 'model', 
           text: 'สวัสดีครับ ผมคือ AI ผู้ช่วยแพทย์และเภสัชกรส่วนตัวของคุณ ผมได้อ่านข้อมูลสุขภาพ ผลตรวจเลือด และรายการยาปัจจุบันของคุณเรียบร้อยแล้ว วันนี้มีอาการอะไรให้ผมช่วยดูแล หรืออยากให้ผมวิเคราะห์ผลตรวจสุขภาพให้ฟังไหมครับ?' 
@@ -115,7 +125,7 @@ export default function Chat() {
       fetchHistory();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, startDate, endDate]);
+  }, [searchQuery, startDate, endDate, hasInitializedDates]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,22 +184,57 @@ export default function Chat() {
         alternatingMessages.pop();
       }
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: alternatingMessages, model: selectedModel })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to get response');
+      // Fetch health context from backend
+      const contextRes = await fetch('/api/chat/context');
+      let healthContext = "No health data available.";
+      if (contextRes.ok) {
+        const contextData = await contextRes.json();
+        healthContext = contextData.healthContext || healthContext;
       }
 
-      const data = await res.json();
+      const systemInstruction = `
+        คุณคือแพทย์ผู้เชี่ยวชาญ (Expert Medical Doctor) และเภสัชกรคลินิก (Clinical Pharmacist)
+        หน้าที่ของคุณคือให้คำปรึกษา แนะนำ และวิเคราะห์ข้อมูลสุขภาพของผู้ป่วย
+        
+        ข้อมูลสุขภาพปัจจุบันของผู้ป่วย (ดึงมาจากระบบติดตามสุขภาพ):
+        ${healthContext}
+
+        คำแนะนำในการตอบ:
+        1. วิเคราะห์ผลตรวจเลือด (Lab Results) ล่าสุด อธิบายความหมายของค่าต่างๆ ว่าปกติหรือไม่ และมีแนวโน้มอย่างไร
+        2. ประเมินสุขภาพโดยรวมจากค่าความดันโลหิต น้ำตาลในเลือด (Vitals)
+        3. ให้คำแนะนำเรื่องการใช้ยา ผลข้างเคียง ข้อควรระวัง หรือปฏิกิริยาระหว่างยา (Drug Interactions) จากรายการยาที่ผู้ป่วยใช้อยู่
+        4. ตอบคำถามด้วยความเห็นอกเห็นใจ เป็นมืออาชีพ และใช้ภาษาที่เข้าใจง่าย (ภาษาไทย)
+        5. **คำเตือนสำคัญ:** ต้องระบุเสมอว่าคุณเป็นเพียง AI ผู้ช่วยทางการแพทย์ และผู้ป่วยควรปรึกษาแพทย์เจ้าของไข้เพื่อการวินิจฉัยและการรักษาที่ถูกต้อง
+      `;
+
+      // Call Gemini API directly from frontend
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: selectedModel,
+        contents: alternatingMessages,
+        config: {
+          systemInstruction: systemInstruction,
+        }
+      });
+
+      const modelText = response.text || '';
+
+      // Log the chat to backend
+      const logRes = await fetch('/api/chat/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage, modelMessage: modelText })
+      });
+      
+      let timestamp = now;
+      if (logRes.ok) {
+        const logData = await logRes.json();
+        if (logData.timestamp) timestamp = logData.timestamp;
+      }
       
       // Add model response to UI
       setShouldScroll(true);
-      setMessages(prev => [...prev, { role: 'model', text: data.text, timestamp: data.timestamp }]);
+      setMessages(prev => [...prev, { role: 'model', text: modelText, timestamp }]);
     } catch (err: any) {
       setError(err.message || 'An error occurred while communicating with the AI.');
       // Remove the user message if it failed, or just show error
@@ -298,10 +343,7 @@ export default function Chat() {
               <button 
                 onClick={() => {
                   setSearchQuery('');
-                  const d = new Date();
-                  d.setDate(d.getDate() - 2);
-                  setStartDate(d.toISOString().split('T')[0]);
-                  setEndDate(new Date().toISOString().split('T')[0]);
+                  setHasInitializedDates(false);
                 }}
                 className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                 title="ล้างตัวกรองทั้งหมด"

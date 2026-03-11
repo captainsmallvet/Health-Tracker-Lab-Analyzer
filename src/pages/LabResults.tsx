@@ -61,25 +61,32 @@ export default function LabResults() {
     setError('');
     setExtractedData(null);
 
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('model', selectedModel);
-
     try {
-      const res = await fetch('/api/analyze-lab', {
-        method: 'POST',
-        body: formData
-      });
+      const { analyzeImage } = await import('../utils/gemini');
+      const prompt = `
+        Analyze this lab result image. Extract the data into a JSON array of objects.
+        IMPORTANT: This image is a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen (such as time, battery percentage, wifi/cellular signal, navigation bars, app headers, etc.). Focus STRICTLY on extracting the medical laboratory test results from the main content area.
+        Each object should represent one test result and have the following keys:
+        - testName: The name of the test. Normalize common abbreviations (e.g., "FBS" to "Fasting Blood Sugar", "Chol" to "Cholesterol", "TG" to "Triglycerides", "HDL-C" to "HDL Cholesterol", "LDL-C" to "LDL Cholesterol").
+        - value: The numerical value or result.
+        - unit: The unit of measurement (if available).
+        - referenceRange: The normal or reference range (if available).
+        
+        Return ONLY the JSON array. Do not include markdown formatting like \`\`\`json.
+      `;
       
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to analyze image');
-      }
-      
-      const data = await res.json();
+      const data = await analyzeImage(file, prompt, selectedModel);
       setExtractedData(data);
+      
+      // Log usage to backend
+      fetch('/api/chat/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: 'analyze-lab', modelMessage: 'success' })
+      }).catch(console.error);
+      
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to analyze image');
     } finally {
       setUploading(false);
     }

@@ -200,20 +200,21 @@ export default function HealthEvents() {
     setAnalyzing(true);
     setError('');
 
-    const formData = new FormData();
-    formData.append('image', file);
-
     try {
-      const res = await fetch('/api/analyze-event', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to analyze image');
-      }
-
-      const data = await res.json();
+      const { analyzeImage } = await import('../utils/gemini');
+      const prompt = `
+        Analyze this medical document, doctor's note, or imaging result (e.g., MRI, X-Ray, Ultrasound). Extract the data into a JSON object.
+        IMPORTANT: This image might be a phone screenshot. Please IGNORE all phone UI elements at the top or bottom of the screen. Focus STRICTLY on extracting the medical event details from the main content area.
+        The object should have the following keys:
+        - Date: The date of the test or event (format YYYY-MM-DD). If not found, leave empty.
+        - Type: Categorize the event into one of these exact strings: "Illness", "Symptom", "Diagnosis", "Surgery/Procedure", "Other". (For imaging like MRI/X-Ray, use "Diagnosis" or "Other").
+        - Description: A short, concise title for the event (e.g., "MRI Brain Results", "Chest X-Ray", "Doctor's Appointment").
+        - Notes: A detailed summary or translation of the findings, impressions, or doctor's notes. Translate complex medical terms into easy-to-understand Thai if possible.
+        
+        Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
+      `;
+      
+      const data = await analyzeImage(file, prompt);
       
       // Update form with extracted data
       setNewEvent(prev => ({
@@ -223,6 +224,14 @@ export default function HealthEvents() {
         Description: data.Description || prev.Description,
         Notes: data.Notes || prev.Notes
       }));
+      
+      // Log usage to backend
+      fetch('/api/chat/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage: 'analyze-event', modelMessage: 'success' })
+      }).catch(console.error);
+      
     } catch (err: any) {
       setError(err.message || 'Failed to analyze image');
     } finally {
