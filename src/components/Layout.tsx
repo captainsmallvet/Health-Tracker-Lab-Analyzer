@@ -57,7 +57,7 @@ export default function Layout() {
         <div className="px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="items-center">
             <h1 className="text-lg md:text-xl font-bold text-slate-800">Health Tracker & Lab Analyzer</h1>
-            <div className="lg:block text-sm text-slate-500 border-l border-slate-200 pl-4">Ulid Sukpan</div>
+            <div className="lg:block text-sm text-green-600">Ulid Sukpan</div>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
