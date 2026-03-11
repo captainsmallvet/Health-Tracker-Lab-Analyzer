@@ -193,36 +193,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-2">Overview of your health metrics and API usage.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">ตั้งแต่:</span>
-              <input 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
-              />
-            </div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">ถึง:</span>
-              <input 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-                className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
-              />
-            </div>
+      <header className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+            <p className="text-slate-500 mt-2">Overview of your health metrics and API usage.</p>
           </div>
-
-          <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100">
+          
+          <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 self-start md:self-center">
             <img 
               src={user?.picture} 
               alt={user?.name} 
@@ -237,6 +215,28 @@ export default function Dashboard() {
                 <p className="text-xs text-slate-500">Welcome back</p>
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-slate-100 w-fit">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">ตั้งแต่:</span>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)}
+              className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+            />
+          </div>
+          <span className="text-slate-300">|</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">ถึง:</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)}
+              className="text-sm border-none bg-transparent focus:ring-0 text-slate-700 outline-none"
+            />
           </div>
         </div>
       </header>
