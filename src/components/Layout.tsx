@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart } from 'lucide-react';
@@ -6,6 +7,13 @@ import clsx from 'clsx';
 export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      mainContent.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.pathname]);
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -80,7 +88,7 @@ export default function Layout() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <div className="p-6 md:p-8 max-w-5xl mx-auto">
             <Outlet />
           </div>
