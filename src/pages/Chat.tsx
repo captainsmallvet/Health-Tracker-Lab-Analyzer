@@ -368,32 +368,7 @@ export default function Chat() {
           </div>
         )}
         
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Floating Shortcuts */}
-      <div className="absolute right-6 bottom-32 flex flex-col gap-2 z-20">
-        <button
-          onClick={scrollToTop}
-          title="ไปที่ด้านบนสุด"
-          className="w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95"
-        >
-          <ArrowUp className="w-5 h-5" />
-        </button>
-        <button
-          onClick={scrollToFilters}
-          title="ไปที่ตัวกรองประวัติ"
-          className="w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95"
-        >
-          <ChevronUp className="w-5 h-5" />
-        </button>
-        <button
-          onClick={scrollToBottom}
-          title="ไปที่ข้อความล่าสุด"
-          className="w-10 h-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all active:scale-95"
-        >
-          <ChevronDown className="w-5 h-5" />
-        </button>
+        <div id="chat-bottom" ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
