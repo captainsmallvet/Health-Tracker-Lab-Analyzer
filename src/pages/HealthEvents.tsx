@@ -13,6 +13,7 @@ export default function HealthEvents() {
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultEvent = {
@@ -214,7 +215,7 @@ export default function HealthEvents() {
         Return ONLY the JSON object. Do not include markdown formatting like \`\`\`json.
       `;
       
-      const data = await analyzeImage(file, prompt);
+      const data = await analyzeImage(file, prompt, selectedModel);
       
       // Update form with extracted data
       setNewEvent(prev => ({
@@ -305,32 +306,50 @@ export default function HealthEvents() {
                       Upload a photo of your doctor's note, MRI, or X-Ray report to automatically extract details.
                     </p>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      ref={fileInputRef}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="w-full sm:w-auto px-3 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       disabled={analyzing}
-                    />
-                    <button
-                      type="button"
-                      disabled={analyzing}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
                     >
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4" />
-                          Upload Image
-                        </>
-                      )}
-                    </button>
+<option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+<option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+<option value="gemini-3-pro-preview">Gemini 3.0 Pro Preview</option>
+<option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
+<option value="gemini-flash-latest">Gemini Flash Latest</option>
+<option value="gemini-flash-lite-latest">Gemini Flash Lite Latest</option>
+<option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+<option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+<option value="gemini-pro-latest">Gemini Pro (Latest Stable)</option>
+                    </select>
+                    <div className="relative w-full sm:w-auto">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        ref={fileInputRef}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        disabled={analyzing}
+                      />
+                      <button
+                        type="button"
+                        disabled={analyzing}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                      >
+                        {analyzing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Upload Image
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
