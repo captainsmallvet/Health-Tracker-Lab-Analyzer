@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Upload, FileText, CheckCircle2, AlertCircle, Save, X, Plus, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
+import Highlight from '../components/Highlight';
 
 export default function LabResults() {
   const [labs, setLabs] = useState<any[]>([]);
@@ -668,15 +669,21 @@ export default function LabResults() {
                     editingLab?._rowIndex === l._rowIndex && "bg-amber-50/30"
                   )}>
                     <td className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{l.Date}</td>
-                    <td className="px-6 py-4 font-medium text-slate-700">{l.TestName}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      <Highlight text={l.TestName} query={searchQuery} />
+                    </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                        {l.Value}
+                        <Highlight text={l.Value} query={searchQuery} />
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">{l.Unit}</td>
+                    <td className="px-6 py-4 text-slate-500">
+                      <Highlight text={l.Unit} query={searchQuery} />
+                    </td>
                     <td className="px-6 py-4 text-slate-500 text-xs">{l.ReferenceRange}</td>
-                    <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate" title={l.Notes}>{l.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate" title={l.Notes}>
+                      <Highlight text={l.Notes || ''} query={searchQuery} />
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 

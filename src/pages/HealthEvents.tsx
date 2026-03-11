@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
+import Highlight from '../components/Highlight';
 
 export default function HealthEvents() {
   const [events, setEvents] = useState<any[]>([]);
@@ -513,7 +514,9 @@ export default function HealthEvents() {
                     )}>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-slate-900 text-lg">{event.Description}</h3>
+                          <h3 className="font-semibold text-slate-900 text-lg">
+                            <Highlight text={event.Description} query={searchQuery} />
+                          </h3>
                           <button 
                             onClick={() => startEdit(event)}
                             className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -530,12 +533,12 @@ export default function HealthEvents() {
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
-                          {event.Type}
+                          <Highlight text={event.Type} query={searchQuery} />
                         </span>
                       </div>
                       {event.Notes && (
                         <p className="text-slate-600 text-sm whitespace-pre-wrap mt-3 pt-3 border-t border-slate-200/60">
-                          {event.Notes}
+                          <Highlight text={event.Notes} query={searchQuery} />
                         </p>
                       )}
                     </div>

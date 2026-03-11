@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Upload, Pill, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Calendar, Filter, Clock, Trash2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
+import Highlight from '../components/Highlight';
 
 export default function Medications() {
   const [meds, setMeds] = useState<any[]>([]);
@@ -737,14 +738,20 @@ export default function Medications() {
                 activeMeds.map((m: any, i) => (
                   <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{m.MedicationName}</div>
-                      <div className="text-xs text-slate-500 mt-1">{m.Purpose}</div>
+                      <div className="font-medium text-slate-900">
+                        <Highlight text={m.MedicationName} query={searchQuery} />
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        <Highlight text={m.Purpose} query={searchQuery} />
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 mb-1">
-                        {m.Dosage}
+                        <Highlight text={m.Dosage} query={searchQuery} />
                       </span>
-                      <div className="text-slate-700">{m.Frequency}</div>
+                      <div className="text-slate-700">
+                        <Highlight text={m.Frequency} query={searchQuery} />
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-slate-700">
@@ -757,7 +764,7 @@ export default function Medications() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 min-w-[250px] whitespace-pre-wrap">
-                      {m.Notes || '-'}
+                      <Highlight text={m.Notes || ''} query={searchQuery} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
@@ -804,12 +811,20 @@ export default function Medications() {
                 {pastMeds.map((m: any, i) => (
                   <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-medium text-slate-700">{m.MedicationName}</div>
-                      <div className="text-xs text-slate-400 mt-1">{m.Purpose}</div>
+                      <div className="font-medium text-slate-700">
+                        <Highlight text={m.MedicationName} query={searchQuery} />
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        <Highlight text={m.Purpose} query={searchQuery} />
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-slate-600">{m.Dosage}</div>
-                      <div className="text-slate-500 text-xs mt-1">{m.Frequency}</div>
+                      <div className="text-slate-600">
+                        <Highlight text={m.Dosage} query={searchQuery} />
+                      </div>
+                      <div className="text-slate-500 text-xs mt-1">
+                        <Highlight text={m.Frequency} query={searchQuery} />
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-slate-600 text-xs whitespace-nowrap">
@@ -820,7 +835,7 @@ export default function Medications() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 min-w-[250px] whitespace-pre-wrap">
-                      {m.Notes || '-'}
+                      <Highlight text={m.Notes || ''} query={searchQuery} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 

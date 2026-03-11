@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Stethoscope, AlertCircle, Loader2, Search, Calendar, Filter, X } from 'lucide-react';
 import Markdown from 'react-markdown';
 import clsx from 'clsx';
+import Highlight from '../components/Highlight';
 
 interface Message {
   role: 'user' | 'model';
@@ -38,6 +39,17 @@ export default function Chat() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const renderWithHighlight = (children: any, query: string) => {
+    if (!query.trim()) return children;
+    
+    return React.Children.map(children, child => {
+      if (typeof child === 'string') {
+        return <Highlight text={child} query={query} />;
+      }
+      return child;
+    });
   };
 
   useEffect(() => {
@@ -274,10 +286,24 @@ export default function Chat() {
                     : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm shadow-sm"
                 )}>
                   {msg.role === 'user' ? (
-                    <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
+                    <p className="whitespace-pre-wrap text-sm">
+                      <Highlight text={msg.text} query={searchQuery} />
+                    </p>
                   ) : (
                     <div className="markdown-body text-sm prose prose-slate prose-p:leading-relaxed prose-pre:bg-slate-100 prose-pre:text-slate-800 max-w-none">
-                      <Markdown>{msg.text}</Markdown>
+                      <Markdown
+                        components={{
+                          p: ({ children }) => <p>{renderWithHighlight(children, searchQuery)}</p>,
+                          li: ({ children }) => <li>{renderWithHighlight(children, searchQuery)}</li>,
+                          h1: ({ children }) => <h1>{renderWithHighlight(children, searchQuery)}</h1>,
+                          h2: ({ children }) => <h2>{renderWithHighlight(children, searchQuery)}</h2>,
+                          h3: ({ children }) => <h3>{renderWithHighlight(children, searchQuery)}</h3>,
+                          strong: ({ children }) => <strong>{renderWithHighlight(children, searchQuery)}</strong>,
+                          em: ({ children }) => <em>{renderWithHighlight(children, searchQuery)}</em>,
+                        }}
+                      >
+                        {msg.text}
+                      </Markdown>
                     </div>
                   )}
                   {msg.timestamp && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Save, Activity, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown, X } from 'lucide-react';
 import clsx from 'clsx';
+import Highlight from '../components/Highlight';
 
 export default function Vitals() {
   const [vitals, setVitals] = useState<any[]>([]);
@@ -467,7 +468,9 @@ export default function Vitals() {
                       ) : '-'}
                     </td>
                     <td className="px-6 py-4">{v.HeartRate ? `${v.HeartRate} bpm` : '-'}</td>
-                    <td className="px-6 py-4 text-slate-500 text-sm max-w-xs truncate" title={v.Notes}>{v.Notes || '-'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-sm max-w-xs truncate" title={v.Notes}>
+                      <Highlight text={v.Notes || ''} query={searchQuery} />
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
