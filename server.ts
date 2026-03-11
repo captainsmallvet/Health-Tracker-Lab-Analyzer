@@ -464,25 +464,37 @@ app.get('/api/chat/history', authenticate, async (req, res) => {
     let effectiveStartDate = startDate as string;
     let effectiveEndDate = endDate as string;
 
-    if (initial === 'true' && rows.length > 0) {
-      // Find the last valid message date
-      let lastDate = new Date();
-      for (let i = rows.length - 1; i >= 0; i--) {
-        if (rows[i][0]) {
-          const d = new Date(rows[i][0]);
-          if (!isNaN(d.getTime())) {
-            lastDate = d;
-            break;
+    if (initial === 'true') {
+      const todayThai = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+      
+      let lastDate = todayThai;
+      if (rows.length > 0) {
+        // Find the last valid message date
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i][0]) {
+            const d = new Date(rows[i][0]);
+            if (!isNaN(d.getTime())) {
+              lastDate = d;
+              break;
+            }
           }
         }
       }
       
       const start = new Date(lastDate);
       start.setDate(start.getDate() - 2);
-      effectiveStartDate = start.toISOString().split('T')[0];
+      const startYear = start.getFullYear();
+      const startMonth = String(start.getMonth() + 1).padStart(2, '0');
+      const startDay = String(start.getDate()).padStart(2, '0');
+      effectiveStartDate = `${startYear}-${startMonth}-${startDay}`;
       
-      // End date is always today
-      effectiveEndDate = new Date().toISOString().split('T')[0];
+      // End date is today + 2 days to ensure new messages are covered
+      const end = new Date(todayThai);
+      end.setDate(end.getDate() + 2);
+      const endYear = end.getFullYear();
+      const endMonth = String(end.getMonth() + 1).padStart(2, '0');
+      const endDay = String(end.getDate()).padStart(2, '0');
+      effectiveEndDate = `${endYear}-${endMonth}-${endDay}`;
     }
     
     const filteredRows = rows.filter(row => {
