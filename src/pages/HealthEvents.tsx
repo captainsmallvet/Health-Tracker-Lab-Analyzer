@@ -1,22 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { CalendarHeart, Plus, Save, X, Activity, Stethoscope, Syringe, AlertTriangle, Upload, Image as ImageIcon, Loader2, Search, Calendar, Filter, Trash2, Edit2, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function HealthEvents() {
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   
-  const [showForm, setShowForm] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [newEvent, setNewEvent] = useState({
+
+  const defaultEvent = {
     Date: new Date().toISOString().split('T')[0],
     Type: 'Illness',
     Description: '',
     Notes: ''
-  });
+  };
+
+  const [newEvent, setNewEvent] = useState(defaultEvent);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [sortOption, setSortOption] = useState('date_desc');
 
   const eventTypes = [
     { value: 'Illness', label: 'Illness / Disease (การเจ็บป่วย/โรค)', icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-100' },
@@ -35,9 +46,7 @@ export default function HealthEvents() {
       const res = await fetch('/api/data/HealthEvents');
       if (res.ok) {
         const data = await res.json();
-        // Sort by date descending
-        const sortedData = data.sort((a: any, b: any) => new Date(b.Date).getTime() - new Date(a.Date).getTime());
-        setEvents(sortedData);
+        setEvents(data);
       }
     } catch (error) {
       console.error('Failed to fetch events', error);
@@ -52,23 +61,36 @@ export default function HealthEvents() {
     setError('');
     
     try {
-      const res = await fetch('/api/data/HealthEvents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([newEvent])
-      });
-      
-      if (res.ok) {
-        setShowForm(false);
-        setNewEvent({
-          Date: new Date().toISOString().split('T')[0],
-          Type: 'Illness',
-          Description: '',
-          Notes: ''
+      if (editingEvent) {
+        // Update existing
+        const res = await fetch(`/api/data/HealthEvents/${editingEvent._rowIndex}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newEvent)
         });
-        fetchEvents();
+        if (res.ok) {
+          setIsModalOpen(false);
+          setEditingEvent(null);
+          setNewEvent(defaultEvent);
+          fetchEvents();
+        } else {
+          throw new Error('Failed to update event');
+        }
       } else {
-        throw new Error('Failed to save event');
+        // Create new
+        const res = await fetch('/api/data/HealthEvents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([newEvent])
+        });
+        
+        if (res.ok) {
+          setIsModalOpen(false);
+          setNewEvent(defaultEvent);
+          fetchEvents();
+        } else {
+          throw new Error('Failed to save event');
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -76,6 +98,99 @@ export default function HealthEvents() {
       setSaving(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!editingEvent) return;
+    
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/data/HealthEvents/${editingEvent._rowIndex}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setConfirmDelete(null);
+        setEditingEvent(null);
+        setNewEvent(defaultEvent);
+        setIsModalOpen(false);
+        fetchEvents();
+      } else {
+        throw new Error('Failed to delete event');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEdit = (event: any) => {
+    setEditingEvent(event);
+    setNewEvent({
+      Date: event.Date || '',
+      Type: event.Type || 'Illness',
+      Description: event.Description || '',
+      Notes: event.Notes || ''
+    });
+    setConfirmDelete(null);
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setEditingEvent(null);
+    setNewEvent(defaultEvent);
+    setConfirmDelete(null);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingEvent(null);
+    setNewEvent(defaultEvent);
+    setConfirmDelete(null);
+    setError('');
+  };
+
+  // Filtering & Sorting Logic
+  const filteredEvents = useMemo(() => {
+    let result = events.filter(e => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          (e.Description || '').toLowerCase().includes(query) ||
+          (e.Notes || '').toLowerCase().includes(query) ||
+          (e.Type || '').toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Date Range filter
+      if (filterStartDate || filterEndDate) {
+        const eventDate = e.Date ? new Date(e.Date) : null;
+        if (!eventDate) return false;
+
+        if (filterStartDate && eventDate < new Date(filterStartDate)) return false;
+        if (filterEndDate && eventDate > new Date(filterEndDate)) return false;
+      }
+
+      return true;
+    });
+
+    // Sorting logic
+    result = [...result].sort((a, b) => {
+      if (sortOption === 'date_desc') {
+        return new Date(b.Date).getTime() - new Date(a.Date).getTime();
+      } else if (sortOption === 'date_asc') {
+        return new Date(a.Date).getTime() - new Date(b.Date).getTime();
+      } else if (sortOption === 'type_asc') {
+        return (a.Type || '').localeCompare(b.Type || '', 'th');
+      } else if (sortOption === 'type_desc') {
+        return (b.Type || '').localeCompare(a.Type || '', 'th');
+      }
+      return 0;
+    });
+
+    return result;
+  }, [events, searchQuery, filterStartDate, filterEndDate, sortOption]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -130,188 +245,306 @@ export default function HealthEvents() {
           <p className="text-slate-500 mt-2">Record medical history, symptoms, surgeries, and illnesses.</p>
         </div>
         <button 
-          onClick={() => setShowForm(true)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+          onClick={openAddModal}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
         >
           <Plus className="w-5 h-5" />
           Add Event
         </button>
       </header>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
-          <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
-
-      {/* Add Form */}
-      {showForm && (
-        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden ring-1 ring-indigo-50">
-          <div className="p-6 border-b border-indigo-50 bg-indigo-50/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CalendarHeart className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Record New Health Event</h2>
+      {/* Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-full max-w-2xl my-auto">
+            <div className={clsx(
+              "p-6 border-b border-slate-100 flex items-center justify-between",
+              editingEvent ? "bg-amber-50/50" : "bg-indigo-50/30"
+            )}>
+              <div className="flex items-center gap-3">
+                {editingEvent ? <Edit2 className="w-5 h-5 text-amber-600" /> : <CalendarHeart className="w-5 h-5 text-indigo-600" />}
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {editingEvent ? 'Edit Health Event' : 'Record New Health Event'}
+                </h2>
+              </div>
+              <button 
+                onClick={closeModal}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <button 
-              onClick={() => setShowForm(false)}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSave} className="p-6 space-y-5">
-            {/* AI Image Upload Section */}
-            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4" />
-                    Auto-fill from Medical Document
-                  </h3>
-                  <p className="text-xs text-indigo-700 mt-1">
-                    Upload a photo of your doctor's note, MRI, or X-Ray report to automatically extract details.
-                  </p>
+            
+            <form onSubmit={handleSave} className="p-6 space-y-5">
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
+                  <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm">{error}</p>
                 </div>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    ref={fileInputRef}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    disabled={analyzing}
+              )}
+
+              {/* AI Image Upload Section */}
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4" />
+                      Auto-fill from Medical Document
+                    </h3>
+                    <p className="text-xs text-indigo-700 mt-1">
+                      Upload a photo of your doctor's note, MRI, or X-Ray report to automatically extract details.
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      ref={fileInputRef}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={analyzing}
+                    />
+                    <button
+                      type="button"
+                      disabled={analyzing}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                    >
+                      {analyzing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Upload Image
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={newEvent.Date}
+                    onChange={e => setNewEvent({...newEvent, Date: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   />
-                  <button
-                    type="button"
-                    disabled={analyzing}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Event Type *</label>
+                  <select 
+                    value={newEvent.Type}
+                    onChange={e => setNewEvent({...newEvent, Type: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   >
-                    {analyzing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        Upload Image
-                      </>
+                    {eventTypes.map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newEvent.Description}
+                    onChange={e => setNewEvent({...newEvent, Description: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    placeholder="e.g., เปลี่ยนข้อเข่าเทียม, ติดโควิด, หน้ามืดเวียนหัว"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
+                  <textarea 
+                    value={newEvent.Notes}
+                    onChange={e => setNewEvent({...newEvent, Notes: e.target.value})}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none min-h-[100px]"
+                    placeholder="รายละเอียดเพิ่มเติม เช่น อาการเป็นอย่างไร, รักษาที่ไหน, หมอแนะนำว่าอย่างไร..."
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-between items-center gap-3">
+                {editingEvent ? (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (confirmDelete === editingEvent._rowIndex) {
+                        handleDelete();
+                      } else {
+                        setConfirmDelete(editingEvent._rowIndex);
+                      }
+                    }}
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 font-medium rounded-xl transition-colors disabled:opacity-50",
+                      confirmDelete === editingEvent._rowIndex ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-rose-50 text-rose-600 hover:bg-rose-100"
                     )}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {confirmDelete === editingEvent._rowIndex ? 'Confirm Delete?' : 'Delete Event'}
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+                
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={closeModal}
+                    className="px-6 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={saving}
+                    className={clsx(
+                      "flex items-center gap-2 px-6 py-2.5 text-white font-medium rounded-xl transition-colors disabled:opacity-50",
+                      editingEvent ? "bg-amber-600 hover:bg-amber-700" : "bg-indigo-600 hover:bg-indigo-700"
+                    )}
+                  >
+                    <Save className="w-4 h-4" />
+                    {saving ? 'Saving...' : editingEvent ? 'Update Event' : 'Save Event'}
                   </button>
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
-                <input 
-                  type="date" 
-                  required
-                  value={newEvent.Date}
-                  onChange={e => setNewEvent({...newEvent, Date: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Event Type *</label>
-                <select 
-                  value={newEvent.Type}
-                  onChange={e => setNewEvent({...newEvent, Type: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                >
-                  {eventTypes.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newEvent.Description}
-                  onChange={e => setNewEvent({...newEvent, Description: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  placeholder="e.g., เปลี่ยนข้อเข่าเทียม, ติดโควิด, หน้ามืดเวียนหัว"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Additional Notes</label>
-                <textarea 
-                  value={newEvent.Notes}
-                  onChange={e => setNewEvent({...newEvent, Notes: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none min-h-[100px]"
-                  placeholder="รายละเอียดเพิ่มเติม เช่น อาการเป็นอย่างไร, รักษาที่ไหน, หมอแนะนำว่าอย่างไร..."
-                />
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button 
-                type="submit"
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Save Event'}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
       {/* Timeline View */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        {loading ? (
-          <div className="text-center py-12 text-slate-400">Loading history...</div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <CalendarHeart className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>No health events recorded yet.</p>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <CalendarHeart className="w-5 h-5 text-slate-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Health History</h2>
           </div>
-        ) : (
-          <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 pb-4">
-            {events.map((event: any, i) => {
-              const typeConfig = getTypeConfig(event.Type);
-              const Icon = typeConfig.icon;
-              
-              return (
-                <div key={i} className="relative pl-8">
-                  {/* Timeline dot */}
-                  <div className={clsx(
-                    "absolute -left-[17px] top-1 w-8 h-8 rounded-full flex items-center justify-center ring-4 ring-white",
-                    typeConfig.bg, typeConfig.color
-                  )}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  
-                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 hover:border-slate-200 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-slate-900 text-lg">{event.Description}</h3>
-                      <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 w-fit">
-                        {new Date(event.Date).toLocaleDateString('en-GB', { 
-                          day: 'numeric', month: 'short', year: 'numeric' 
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
-                        {event.Type}
-                      </span>
-                    </div>
-                    {event.Notes && (
-                      <p className="text-slate-600 text-sm whitespace-pre-wrap mt-3 pt-3 border-t border-slate-200/60">
-                        {event.Notes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <input 
+                type="date" 
+                value={filterStartDate}
+                onChange={e => setFilterStartDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+              <span className="text-slate-300">-</span>
+              <input 
+                type="date" 
+                value={filterEndDate}
+                onChange={e => setFilterEndDate(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 w-28"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+              <ArrowUpDown className="w-4 h-4 text-slate-400" />
+              <select 
+                value={sortOption}
+                onChange={e => setSortOption(e.target.value)}
+                className="bg-transparent border-none p-0 text-xs focus:ring-0 outline-none text-slate-600 font-medium"
+              >
+                <option value="date_desc">วันที่ (ใหม่-เก่า)</option>
+                <option value="date_asc">วันที่ (เก่า-ใหม่)</option>
+                <option value="type_asc">ประเภท (ก-ฮ, A-Z)</option>
+                <option value="type_desc">ประเภท (ฮ-ก, Z-A)</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="ค้นหา Health Events..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-full sm:w-48"
+              />
+            </div>
+
+            {(filterStartDate || filterEndDate || searchQuery || sortOption !== 'date_desc') && (
+              <button 
+                onClick={() => { setFilterStartDate(''); setFilterEndDate(''); setSearchQuery(''); setSortOption('date_desc'); }}
+                className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                title="ล้างตัวกรอง"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
-        )}
+        </div>
+
+        <div className="p-6">
+          {loading ? (
+            <div className="text-center py-12 text-slate-400">Loading history...</div>
+          ) : filteredEvents.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <CalendarHeart className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p>No health events found.</p>
+            </div>
+          ) : (
+            <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 pb-4">
+              {filteredEvents.map((event: any, i) => {
+                const typeConfig = getTypeConfig(event.Type);
+                const Icon = typeConfig.icon;
+                
+                return (
+                  <div key={i} className="relative pl-8">
+                    {/* Timeline dot */}
+                    <div className={clsx(
+                      "absolute -left-[17px] top-1 w-8 h-8 rounded-full flex items-center justify-center ring-4 ring-white",
+                      typeConfig.bg, typeConfig.color
+                    )}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    
+                    <div className={clsx(
+                      "bg-slate-50 rounded-2xl p-5 border border-slate-100 hover:border-slate-200 transition-colors group",
+                      editingEvent?._rowIndex === event._rowIndex && "bg-amber-50/30 border-amber-200"
+                    )}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-slate-900 text-lg">{event.Description}</h3>
+                          <button 
+                            onClick={() => startEdit(event)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 w-fit">
+                          {new Date(event.Date).toLocaleDateString('en-GB', { 
+                            day: 'numeric', month: 'short', year: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
+                          {event.Type}
+                        </span>
+                      </div>
+                      {event.Notes && (
+                        <p className="text-slate-600 text-sm whitespace-pre-wrap mt-3 pt-3 border-t border-slate-200/60">
+                          {event.Notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
