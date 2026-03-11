@@ -20,7 +20,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white border-b border-slate-200">
         <div className="px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-lg md:text-xl font-bold text-slate-800">Health Tracker & Lab Analyzer</h1>
@@ -53,7 +53,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col md:flex-row overflow-hidden">
+      <div className="flex flex-1 flex-col md:flex-row">
         {/* Sidebar */}
         <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col">
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -80,7 +80,7 @@ export default function Layout() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           <div className="p-6 md:p-8 max-w-5xl mx-auto">
             <Outlet />
           </div>
