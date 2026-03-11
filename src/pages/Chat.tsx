@@ -21,6 +21,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [error, setError] = useState('');
+  const [shouldScroll, setShouldScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Filter states
@@ -40,8 +41,11 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (shouldScroll && !isFetchingHistory) {
+      scrollToBottom();
+      setShouldScroll(false);
+    }
+  }, [messages, shouldScroll, isFetchingHistory]);
 
   const fetchHistory = async () => {
     setIsFetchingHistory(true);
@@ -89,6 +93,7 @@ export default function Chat() {
     // Add user message to UI
     const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
     const newMessages: Message[] = [...messages, { role: 'user', text: userMessage, timestamp: now }];
+    setShouldScroll(true);
     setMessages(newMessages);
     setIsLoading(true);
 
@@ -113,6 +118,7 @@ export default function Chat() {
       const data = await res.json();
       
       // Add model response to UI
+      setShouldScroll(true);
       setMessages(prev => [...prev, { role: 'model', text: data.text, timestamp: data.timestamp }]);
     } catch (err: any) {
       setError(err.message || 'An error occurred while communicating with the AI.');
