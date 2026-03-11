@@ -133,16 +133,51 @@ export default function Chat() {
     setIsLoading(true);
 
     try {
-      // Format messages for Gemini API, limit to last 20 messages to save tokens
-      const apiMessages = newMessages.slice(-20).map(msg => ({
-        role: msg.role,
-        parts: [{ text: msg.text }]
-      }));
+      // Format messages for Gemini API
+      let apiMessages = newMessages
+        // 1. Remove the hardcoded greeting to avoid sending it to the API
+        .filter((msg, idx) => !(idx === 0 && msg.role === 'model' && msg.text.includes('สวัสดีครับ ผมคือ AI')))
+        .map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.text }]
+        }));
+
+      // 2. Keep only last 20 messages to save tokens
+      apiMessages = apiMessages.slice(-20);
+
+      // 3. Gemini API strictly requires the first message to be from 'user'
+      while (apiMessages.length > 0 && apiMessages[0].role === 'model') {
+        apiMessages.shift();
+      }
+
+      // 4. Ensure strict alternation (user, model, user, model)
+      const alternatingMessages: any[] = [];
+      let expectedRole = 'user';
+      for (const msg of apiMessages) {
+        if (msg.role === expectedRole) {
+          alternatingMessages.push({
+            role: msg.role,
+            parts: [{ text: msg.parts[0].text }]
+          });
+          expectedRole = expectedRole === 'user' ? 'model' : 'user';
+        } else {
+          // If we got 'user' but expected 'model', or got 'model' but expected 'user'
+          // We just append the text to the last message in the array
+          if (alternatingMessages.length > 0) {
+            alternatingMessages[alternatingMessages.length - 1].parts[0].text += '\n\n' + msg.parts[0].text;
+          }
+        }
+      }
+
+      // 5. The last message MUST be from 'user' for generateContent
+      if (alternatingMessages.length > 0 && alternatingMessages[alternatingMessages.length - 1].role === 'model') {
+        alternatingMessages.pop();
+      }
 
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, model: selectedModel })
+        body: JSON.stringify({ messages: alternatingMessages, model: selectedModel })
       });
 
       if (!res.ok) {
