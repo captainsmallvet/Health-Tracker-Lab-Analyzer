@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Trash2, Users } from 'lucide-react';
+import { Upload, CheckCircle2, AlertCircle, Save, X, Plus, Edit2, Search, Trash2, Users, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
 import Highlight from '../components/Highlight';
 
@@ -28,6 +28,7 @@ export default function FamilyHistory() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('default');
 
   useEffect(() => {
     fetchHistory();
@@ -206,6 +207,20 @@ export default function FamilyHistory() {
       (h.Condition || '').toLowerCase().includes(query) ||
       (h.Notes || '').toLowerCase().includes(query)
     );
+  }).sort((a, b) => {
+    if (sortOption === 'relation_asc') {
+      return (a.Relation || '').localeCompare(b.Relation || '', 'th');
+    }
+    if (sortOption === 'relation_desc') {
+      return (b.Relation || '').localeCompare(a.Relation || '', 'th');
+    }
+    if (sortOption === 'condition_asc') {
+      return (a.Condition || '').localeCompare(b.Condition || '', 'th');
+    }
+    if (sortOption === 'condition_desc') {
+      return (b.Condition || '').localeCompare(a.Condition || '', 'th');
+    }
+    return 0;
   });
 
   return (
@@ -491,6 +506,21 @@ export default function FamilyHistory() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-4 items-start lg:items-center flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <ArrowUpDown className="w-4 h-4 text-slate-400" />
+          <select
+            value={sortOption}
+            onChange={e => setSortOption(e.target.value)}
+            className="px-2 py-1.5 border border-slate-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full sm:w-auto bg-white"
+          >
+            <option value="default">เรียงตามลำดับที่เพิ่ม</option>
+            <option value="relation_asc">ความสัมพันธ์ (ก-ฮ, A-Z)</option>
+            <option value="relation_desc">ความสัมพันธ์ (ฮ-ก, Z-A)</option>
+            <option value="condition_asc">โรค/อาการเจ็บป่วย (ก-ฮ, A-Z)</option>
+            <option value="condition_desc">โรค/อาการเจ็บป่วย (ฮ-ก, Z-A)</option>
+          </select>
+        </div>
+
         <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
           <div className="relative w-full max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -502,12 +532,12 @@ export default function FamilyHistory() {
               className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 text-sm w-full"
             />
           </div>
-          {searchQuery && (
+          {(searchQuery || sortOption !== 'default') && (
             <button 
-              onClick={() => setSearchQuery('')}
+              onClick={() => { setSearchQuery(''); setSortOption('default'); }}
               className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors whitespace-nowrap"
             >
-              ล้างการค้นหา
+              ล้างตัวกรอง
             </button>
           )}
         </div>
