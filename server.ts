@@ -1,10 +1,4 @@
 import express from 'express';
-import fs from 'fs';
-fs.writeFileSync('env-debug.log', JSON.stringify({
-  OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID ? 'Set' : 'Missing',
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
-  keys: Object.keys(process.env).filter(k => !k.startsWith('npm_'))
-}, null, 2));
 console.log('SERVER STARTING AT', new Date().toISOString());
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -28,17 +22,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
-
-app.get('/debug-env', (req, res) => {
-  res.json({
-    OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID ? 'Set (starts with ' + process.env.OAUTH_CLIENT_ID.substring(0, 5) + '...)' : 'Missing',
-    OAUTH_CLIENT_SECRET: process.env.OAUTH_CLIENT_SECRET ? 'Set' : 'Missing',
-    GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ? 'Set' : 'Missing',
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
-    APP_URL: process.env.APP_URL,
-    NODE_ENV: process.env.NODE_ENV
-  });
-});
 
 const upload = multer({ storage: multer.memoryStorage() });
 
