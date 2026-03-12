@@ -1,4 +1,11 @@
 import express from 'express';
+import fs from 'fs';
+fs.writeFileSync('env-debug.log', JSON.stringify({
+  OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID ? 'Set' : 'Missing',
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
+  keys: Object.keys(process.env).filter(k => !k.startsWith('npm_'))
+}, null, 2));
+console.log('SERVER STARTING AT', new Date().toISOString());
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
@@ -21,6 +28,17 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
+
+app.get('/debug-env', (req, res) => {
+  res.json({
+    OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID ? 'Set (starts with ' + process.env.OAUTH_CLIENT_ID.substring(0, 5) + '...)' : 'Missing',
+    OAUTH_CLIENT_SECRET: process.env.OAUTH_CLIENT_SECRET ? 'Set' : 'Missing',
+    GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ? 'Set' : 'Missing',
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY ? 'Set' : 'Missing',
+    APP_URL: process.env.APP_URL,
+    NODE_ENV: process.env.NODE_ENV
+  });
+});
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -50,15 +68,28 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
 const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET;
+console.log('Debug: OAUTH_CLIENT_ID is', OAUTH_CLIENT_ID ? `Present (starts with ${OAUTH_CLIENT_ID.substring(0, 5)}...)` : 'Missing');
+console.log('Debug: OAUTH_CLIENT_SECRET is', OAUTH_CLIENT_SECRET ? 'Present' : 'Missing');
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // --- OAuth Setup ---
-const oauth2Client = new google.auth.OAuth2(
-  OAUTH_CLIENT_ID,
-  OAUTH_CLIENT_SECRET,
-  `${APP_URL}/api/auth/callback`
-);
+const getOAuth2Client = () => {
+  const id = process.env.OAUTH_CLIENT_ID;
+  const secret = process.env.OAUTH_CLIENT_SECRET;
+  const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+  
+  if (!id || !secret) {
+    console.error('OAuth credentials missing from environment variables');
+    return null;
+  }
+  
+  return new google.auth.OAuth2(
+    id,
+    secret,
+    `${appUrl}/api/auth/callback`
+  );
+};
 
 // --- Middleware ---
 const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -153,7 +184,14 @@ app.post('/api/init-sheets', authenticate, async (req, res) => {
 
 // 1. Auth Routes
 app.get('/api/auth/url', (req, res) => {
-  const url = oauth2Client.generateAuthUrl({
+  const client = getOAuth2Client();
+  if (!client) {
+    return res.status(500).json({ 
+      error: 'OAuth not configured. Please check OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET in Secrets.',
+      details: 'Environment variables are missing in the server context.'
+    });
+  }
+  const url = client.generateAuthUrl({
     access_type: 'offline',
     scope: [
       'https://www.googleapis.com/auth/userinfo.email',
@@ -165,11 +203,15 @@ app.get('/api/auth/url', (req, res) => {
 
 app.get(['/api/auth/callback', '/api/auth/callback/'], async (req, res) => {
   const code = req.query.code as string;
+  const client = getOAuth2Client();
+  if (!client) {
+    return res.status(500).send('OAuth client not initialized');
+  }
   try {
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
+    const { tokens } = await client.getToken(code);
+    client.setCredentials(tokens);
 
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const oauth2 = google.oauth2({ version: 'v2', auth: client });
     const userInfo = await oauth2.userinfo.get();
     
     const email = userInfo.data.email;
