@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown } from 'lucide-react';
+import { Activity, FileText, Pill, MessageSquare, User, LayoutDashboard, LogOut, CalendarHeart, ArrowUpToLine, ArrowUp, ArrowDown, ActivitySquare } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Layout() {
@@ -20,6 +20,7 @@ export default function Layout() {
     { path: '/vitals', label: 'Vitals', icon: Activity },
     { path: '/lab-results', label: 'Lab Results', icon: FileText },
     { path: '/medications', label: 'Medications', icon: Pill },
+    { path: '/activities', label: 'Activities', icon: ActivitySquare },
     { path: '/events', label: 'Health Events', icon: CalendarHeart },
     { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
     { path: '/profile', label: 'Profile', icon: User },

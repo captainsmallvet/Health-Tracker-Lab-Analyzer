@@ -554,12 +554,13 @@ app.get('/api/chat/context', authenticate, async (req, res) => {
     let healthContext = "No health data available.";
     
     if (sheets && GOOGLE_SHEET_ID) {
-      const [vitalsRes, labsRes, medsRes, eventsRes, profileRes] = await Promise.all([
+      const [vitalsRes, labsRes, medsRes, eventsRes, profileRes, activitiesRes] = await Promise.all([
         sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Vitals!A:Z' }).catch(() => null),
         sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'LabResults!A:Z' }).catch(() => null),
         sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Medications!A:Z' }).catch(() => null),
         sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'HealthEvents!A:Z' }).catch(() => null),
-        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Profile!A:Z' }).catch(() => null)
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Profile!A:Z' }).catch(() => null),
+        sheets.spreadsheets.values.get({ spreadsheetId: GOOGLE_SHEET_ID, range: 'Activities!A:Z' }).catch(() => null)
       ]);
 
       const formatData = (response: any) => {
@@ -592,6 +593,7 @@ app.get('/api/chat/context', authenticate, async (req, res) => {
         - Lab Results: ${formatData(labsRes)}
         - Medications: ${formatData(medsRes)}
         - Medical History & Events: ${formatData(eventsRes)}
+        - Activities & Lifestyle: ${formatData(activitiesRes)}
       `;
     }
     res.json({ healthContext });
