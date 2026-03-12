@@ -15,6 +15,18 @@ export default function Layout() {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    // Initialize required sheets on app load
+    fetch('/api/init-sheets', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.created && data.created.length > 0) {
+          console.log('Created missing sheets:', data.created);
+        }
+      })
+      .catch(err => console.error('Failed to initialize sheets:', err));
+  }, []);
+
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/vitals', label: 'Vitals', icon: Activity },

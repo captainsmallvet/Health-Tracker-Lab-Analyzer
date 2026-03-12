@@ -80,6 +80,77 @@ const authenticate = (req: express.Request, res: express.Response, next: express
 
 // --- Routes ---
 
+const REQUIRED_SHEETS: Record<string, string[]> = {
+  'Vitals': ['Date', 'Time', 'BloodPressure', 'HeartRate', 'Temperature', 'Weight', 'BloodSugar', 'Notes'],
+  'LabResults': ['Date', 'TestName', 'ResultValue', 'Unit', 'ReferenceRange', 'Status', 'Notes'],
+  'Medications': ['MedicationName', 'Dosage', 'Frequency', 'Purpose', 'StartDate', 'EndDate', 'Notes'],
+  'HealthEvents': ['Date', 'EventName', 'Category', 'Severity', 'Location', 'Treatment', 'Notes'],
+  'Profile': ['Name', 'Age', 'Gender', 'BloodType', 'Height', 'Weight', 'Allergies', 'ChronicConditions', 'EmergencyContact'],
+  'Activities': ['ActivityName', 'Duration', 'Frequency', 'Details', 'Purpose', 'StartDate', 'EndDate', 'Notes'],
+  'FamilyHistory': ['Relation', 'Condition', 'AgeOfOnset', 'CurrentStatus', 'Notes']
+};
+
+const knownExistingSheets = new Set<string>();
+
+app.post('/api/init-sheets', authenticate, async (req, res) => {
+  try {
+    const sheets = getSheetsClient();
+    if (!sheets || !GOOGLE_SHEET_ID) {
+      return res.status(400).json({ error: 'Google Sheets not configured' });
+    }
+
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: GOOGLE_SHEET_ID
+    });
+    
+    const existingSheetTitles = spreadsheet.data.sheets?.map(s => s.properties?.title) || [];
+    
+    const requests: any[] = [];
+    const sheetsToInitHeaders: { sheetName: string, headers: string[] }[] = [];
+
+    for (const [sheetName, headers] of Object.entries(REQUIRED_SHEETS)) {
+      if (!existingSheetTitles.includes(sheetName)) {
+        requests.push({
+          addSheet: {
+            properties: {
+              title: sheetName
+            }
+          }
+        });
+        sheetsToInitHeaders.push({ sheetName, headers });
+      }
+    }
+
+    if (requests.length > 0) {
+      // Create missing sheets
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: { requests }
+      });
+
+      // Add headers to newly created sheets
+      for (const { sheetName, headers } of sheetsToInitHeaders) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: GOOGLE_SHEET_ID,
+          range: `${sheetName}!A1`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers]
+          }
+        });
+        knownExistingSheets.add(sheetName);
+      }
+    }
+
+    existingSheetTitles.forEach(t => knownExistingSheets.add(t));
+
+    res.json({ success: true, created: sheetsToInitHeaders.map(s => s.sheetName) });
+  } catch (error) {
+    console.error('Failed to initialize sheets:', error);
+    res.status(500).json({ error: 'Failed to initialize sheets' });
+  }
+});
+
 // 1. Auth Routes
 app.get('/api/auth/url', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
@@ -244,6 +315,46 @@ app.get('/api/usage/today', authenticate, async (req, res) => {
   }
 });
 
+async function ensureSheetExists(tab: string, sheets: any, fallbackHeaders?: string[]) {
+  if (!GOOGLE_SHEET_ID) return;
+  if (knownExistingSheets.has(tab)) return;
+  
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: GOOGLE_SHEET_ID
+    });
+    const existingTitles = spreadsheet.data.sheets?.map((s: any) => s.properties?.title) || [];
+    
+    existingTitles.forEach((t: string) => knownExistingSheets.add(t));
+    
+    if (!existingTitles.includes(tab)) {
+      console.log(`Creating missing sheet: ${tab}`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: {
+          requests: [{
+            addSheet: { properties: { title: tab } }
+          }]
+        }
+      });
+      
+      const headers = REQUIRED_SHEETS[tab] || fallbackHeaders;
+      if (headers && headers.length > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: GOOGLE_SHEET_ID,
+          range: `${tab}!A1`,
+          valueInputOption: 'RAW',
+          requestBody: { values: [headers] }
+        });
+      }
+      
+      knownExistingSheets.add(tab);
+    }
+  } catch (error) {
+    console.error(`Failed to ensure sheet ${tab} exists:`, error);
+  }
+}
+
 app.get('/api/data/:tab', authenticate, async (req, res) => {
   const { tab } = req.params;
   const sheets = getSheetsClient();
@@ -252,6 +363,7 @@ app.get('/api/data/:tab', authenticate, async (req, res) => {
   }
 
   try {
+    await ensureSheetExists(tab, sheets);
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
       range: `${tab}!A:Z`,
@@ -286,6 +398,12 @@ app.post('/api/data/:tab', authenticate, async (req, res) => {
   }
 
   try {
+    const items = Array.isArray(data) ? data : [data];
+    let fallbackHeaders: string[] | undefined;
+    if (items.length > 0) {
+      fallbackHeaders = Object.keys(items[0]).filter(k => k !== '_rowIndex');
+    }
+    await ensureSheetExists(tab, sheets, fallbackHeaders);
     // First, get headers
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
@@ -295,7 +413,6 @@ app.post('/api/data/:tab', authenticate, async (req, res) => {
     let headers = headerResponse.data.values?.[0];
     
     // If no headers, create them from the first object
-    const items = Array.isArray(data) ? data : [data];
     if (items.length === 0) return res.json({ success: true });
     
     if (!headers) {
@@ -354,6 +471,11 @@ app.put('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
   }
 
   try {
+    let fallbackHeaders: string[] | undefined;
+    if (data) {
+      fallbackHeaders = Object.keys(data).filter(k => k !== '_rowIndex');
+    }
+    await ensureSheetExists(tab, sheets, fallbackHeaders);
     // First, get headers
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_SHEET_ID,
@@ -408,6 +530,7 @@ app.delete('/api/data/:tab/:rowIndex', authenticate, async (req, res) => {
   }
 
   try {
+    await ensureSheetExists(tab, sheets);
     // Get sheetId for the tab
     const sheetInfo = await sheets.spreadsheets.get({
       spreadsheetId: GOOGLE_SHEET_ID,
