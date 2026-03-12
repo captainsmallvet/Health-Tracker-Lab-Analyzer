@@ -122,8 +122,7 @@ export default function Layout() {
 
       {/* Floating Shortcut Buttons */}
       <div className={clsx(
-        "fixed right-6 md:right-8 flex flex-col gap-3 z-50 transition-all duration-300",
-        location.pathname === '/chat' ? "bottom-32 md:bottom-36" : "bottom-6 md:bottom-8"
+        "fixed right-6 md:right-8 flex flex-col gap-3 z-50 transition-all duration-300 bottom-32 md:bottom-36"
       )}>
         <button
           onClick={scrollToTop}
