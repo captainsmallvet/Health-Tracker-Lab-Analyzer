@@ -545,19 +545,22 @@ export default function HealthEvents() {
                           <h3 className="font-semibold text-slate-900 text-lg">
                             <Highlight text={event.Description} query={searchQuery} />
                           </h3>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 w-fit">
+                            {new Date(event.Date).toLocaleDateString('en-GB', { 
+                              day: 'numeric', month: 'short', year: 'numeric' 
+                            })}
+                          </span>
                           <button 
                             onClick={() => startEdit(event)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors opacity-0 group-hover:opacity-100"
-                            title="Edit"
+                            className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-slate-600 hover:text-indigo-700 bg-white rounded-full border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
+                            title="Edit Event"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
                           </button>
                         </div>
-                        <span className="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200 w-fit">
-                          {new Date(event.Date).toLocaleDateString('en-GB', { 
-                            day: 'numeric', month: 'short', year: 'numeric' 
-                          })}
-                        </span>
                       </div>
                       <div className="flex items-center gap-2 mb-3">
                         <span className={clsx("text-xs font-medium px-2 py-0.5 rounded-md", typeConfig.bg, typeConfig.color)}>
